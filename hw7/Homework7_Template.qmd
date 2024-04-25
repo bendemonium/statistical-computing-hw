@@ -1,0 +1,500 @@
+---
+title: "Homework 7"
+author: YOUR NAME HERE
+format: 
+  html:
+    embed-resources: true
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+# Question 1 [85 points Total] 
+
+This question continues working with the hand data we used in Week 7 Lecture 2. 
+
+During class, I walked through an example exploring the missing values in hand_train_1.Rda. I proposed several strategies for dealing with the missing handcircumference variables.
+
+For each strategy, I fit a logistic regression model relating sex to hand measurements. I evaluated all of the models on a held out test set called hand_test.Rda.
+
+Below, we will walk through a similar set of steps for datasets hand_train_2.Rda and hand_train_3.Rda, available on HuskyCT.
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+## Part A [18 Points Together]
+
+### Component (i) [3 Points]
+
+Load in hand_train_2.Rda and hand_train_3.Rda. Use functions from the naniar package and the visdat package to visualize the missingness pattern for both datasets.
+
+```{r}
+#YOUR CODE HERE
+```
+
+### Component (ii) [3 Points]
+
+How many NA entries are in each dataset? Which column(s) are they missing from?
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (iii) [4 Points]
+
+For each of the two datasets, create a scatterplot showing the relationship between handcircumference and handlength. Plot it in such a way that missing values can still be seen.
+
+```{r}
+#YOUR CODE HERE
+```
+
+### Component (iv) [4 Points]
+
+Use violin plots to compare the distribution of handlength based on whether or not handcircumference is missing in each dataset.
+
+```{r}
+#YOUR CODE HERE
+```
+
+### Component (v) [4 Points]
+
+For each of the two datasets, formally test if the data is missing completely at random. Report your results
+
+```{r}
+#YOUR CODE HERE
+```
+
+## Part B [40 Points Together]
+
+Now, we will consider using hand_train_2 and hand_train_3 to fit a logistic regression predicting Sex based on the remaining variables. For each component, we will use a different strategy for handling the missing data.
+
+For each strategy and each dataset, display a tidy table of your estimated regression coefficients, and provide a scatterplot with handlength on the horizontal axis and handcircumference on the vertical axis. 
+
+Unless otherwise specified, the horizontal axis for the plots should go from 150 to 230, and the vertical axis for the plots should go from 150 to 250.
+
+The points on the scatterplots should be shaped according to whether they were imputed, and colored according to sex.Note that these instructions differ slightly from the figures I made in the notes.
+
+### Component (i) [5 Points]
+
+Strategy: Observation Deletion. 
+
+Note: When making the scatterplots, display the values of handlength corresponding to missing values of handcircumference using a rugplot. Just like for the points, color the ticks in the rugplot according to their Sex.
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (ii) [5 Points]
+
+Strategy: Variable Deletion
+
+Note: For the scatterplot, plot all the values of handcircumference are 0. Don't adjust the vertical axis scale from the default.
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+
+### Component (iii) [5 Points]
+
+Strategy: Missingness Indicator
+
+Note: For the scatterplot, calculate the implied imputation value obtained using the method outlined in the course notes, and use this as the imputed value for all the points.
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (iv) [4 Points]
+
+Strategy: impute median
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (v) [4 Points]
+
+Strategy: impute mean, grouped by Sex
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (vi) [4 Points]
+
+Strategy: impute handcircumference based on a linear model. The linear model should relate handcircumference to handlength and sex (but not handbreadth).
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (vii) [4 Points]
+
+Method: impute handcircumference based on a random forest model relating it to handlength, handbreadth, and sex.
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+### Component (viii) [4 Points]
+
+Method: k-nearest neighbors with k = 3. Use only handlength and handbreadth in distance variables (no sex)
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+
+### Component (ix) [5 Points]
+
+Method: The EM algorithm as implemented in missMethods.
+
+Tables:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+#YOUR CODE HERE
+```
+
+hand_train_3
+
+```{r}
+#YOUR CODE HERE
+```
+
+
+## Part C [25 Points Together]
+
+We will now assess the performance of the fitted models from B based on different missing data strategies. 
+
+### Component (i) [10 Points]
+
+Use geom_col() to plot the estimated coefficient for handcircumference for each of the nine strategies in Part B, as well as each of the models. 
+
+Though your results may not be identical because of the random seeds, your plots should resemble the following. Order the factors in each plot by the size of the coefficients. For more information on how to do this, see Chapter 16 of WCG.
+
+```{r}
+#YOUR CODE HERE
+```
+
+Which methods give smaller coefficients? Which ones give larger coefficients? Any thoughts on why this might be?
+
+YOUR THOUGHTS HERE
+
+
+### Component (ii) [10 Points]
+
+Now, to assess performance, we will use each model for prediction on our test data (hand_test.Rda)
+
+Our metric for performance will be the number of incorrect classifications compared to the truth, using a classification threshold of 0.5 for the estimated probabilities. The metric is given as a function below.
+
+```{r}
+#YOUR CODE HERE
+```
+
+Calculate this metric for the model fit for each missing data strategy, and approximately recreate the following plot showing each strategy's performance.
+
+```{r}
+#YOUR CODE HERE
+```
+
+Which methods worked best for dataset 2? Which worked best for dataset 3?
+
+```{r}
+#YOUR CODE HERE
+```
+
+Which methods worked worst for dataset 2? Which worked worst for dataset 3?
+
+```{r}
+#YOUR CODE HERE
+```
+
+Was there any method that worked poorly for training 2 but seemed to work well for training 3? Why do you think this was the case?
+
+YOUR THOUGHTS HERE
+
+### Component (iii) [5 Points]
+
+Construct a visualization of the relationship between the estimated coefficient for circumference and the prediction accuracy across the strategies for both the datasets. Make sure to use aesthetics to distinguish between different strategies any datasets.
+
+Do you see any interesting relationships? Comment on them.
+
+```{r}
+#YOUR CODE HERE
+```
+
+YOUR THOUGHTS HERE.
+
+
+# Question 2 [15 Points Total]
+
+## Part A [5 Points]
+
+Revisit the jagr_df_week2.Rda dataset we explored in week 2. Visualize and describe its missingness pattern.
+
+```{r}
+#YOUR CODE HERE
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+YOUR THOUGHTS HERE.
+
+## Part B [5 Points]
+
+Revisit the dat_pit_climate.Rda dataset we explored in week 2. Visualize and describe its missingness pattern.
+
+```{r}
+#YOUR CODE HERE
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+YOUR THOUGHTS HERE.
+
+## Part C [5 Points]
+
+Recall the palmerpenguins data from week 1, which can be loaded using the following code.
+
+```{r}
+library(palmerpenguins)
+penguins |>
+  glimpse()
+```
+
+Visualize and describe its missingness pattern. 
+
+```{r}
+#YOUR CODE HERE
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+```{r}
+#YOUR CODE HERE
+```
+
+YOUR THOUGHTS HERE.

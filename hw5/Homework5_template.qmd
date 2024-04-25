@@ -1,0 +1,169 @@
+---
+title: "Homework 5"
+author: YOUR NAME HERE
+format: 
+  html:
+    embed-resources: true
+---
+
+
+This homework will involve data from transcripts of the American television show "The Office" which aired on NBC from 2005 to 2013. All transcripts are available in the R package schrute, which is available on CRAN.
+
+```{r}
+library(schrute)
+library(tidyverse)
+data(theoffice)
+glimpse(theoffice)
+```
+
+Note that each row in the data frame corresponds to a line spoken by a character in the show. 
+
+# Problem 1 [60 Points Total]
+
+## Part A [10 Points]
+
+The column named text in theoffice contains the words spoken by a character in a line of dialog. Recreate the following figure showing the total number of words spoken in each episode of each season.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Based on the number of words, list out the episodes do you think might be "double episodes" (42 minute instead of 21 long)? 
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Verify your claims by showing that none of these episodes have an episode number right after them. (Example, there is no Season 4 Episode 2, confirming Season 4 Episode 1 is a double episode)
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Finally, guess which episode (hint: in Season 6) was a clip show. Feel free to verify using wikipedia 
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+
+## Part B [8 Points]
+
+Create a word cloud of the 50 most-used words across the entire series, excluding stop words.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+What word was used the most?
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part C [4 Points]
+
+Recreate the following word cloud of names of the 30 characters from the office who spoke the most words throughout the series. The size of the name should be proportional to how many words [including stop words] that the character spoke.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part D [8 Points]
+
+Consider the names of the 30 characters chosen for Part C. Recreate the following bar chart. It shows how many times that each character's name appeared as spoken dialog throughout the show's run.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part E [10 Points]
+
+Let's see if there are other common first names that are spoken throughout the show.
+
+To do this, determine the 1500 most popular names in the babynames dataset [package babynames], remove any names that are also stop words (like Will and May), then count how times each of these names are spoken in the office.
+
+Once you've done that, use the results to recreate the following plot. Each bar is colored based on whether or not the names appeared in Part D.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Which character names shown in part D are missing from our list of common baby names?
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part F [6 Points]
+
+In the office script, the writers often like to spell a character screaming or laughing using words that are at least two letters long and composed entirely of h's and a's. Approximately recreate the following word cloud demonstrating all of these words, with size proportional often they are used.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part G [8 points]
+
+Sometimes, the writers like to indicate yelling by showing the same vowel repeated four or more times in a row (e.g. aaaa, iiii, oooo) in a word. For example, "staaaarrrrted".
+
+Recreate the following plot depicting how times this occurs in episodes written by each writer.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part H [6 points]
+
+Treating each season as a document, calculate the tf_idf scores for the words. Which word has the highest tf_idf score for each season?
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+
+# Problem 2 [40 Points Total]
+
+## Part A [8 Points]
+
+Create a document term matrix corresponding to the number of times each character speaks in each episode. Each character name (e.g. Michael, Dwight, Pam) should correspond to a "term". Each episode corresponds to a "document". 
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Hint: Your matrix should consist of 186 documents and 773 terms.
+
+## Part B [8 Points]
+
+Use latent Dirichlet allocation to fit a topic model with four topics to this data.
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+## Part C [12 Points]
+
+Create a graphic showing the beta scores for the top 10 characters for each topic. 
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Is there a character whose prevalence seems to shift the most between topics?
+
+ANSWER HERE
+
+
+
+## Part D [12 Points]
+
+Create a graphic showing the distribution of topics for each episode across seasons. 
+
+```{r}
+# INSERT SOLUTION HERE
+```
+
+Does the topic distributions seem to shift as the series progresses? How so? What do you think is driving this change?
+
+ANSWER HERE.

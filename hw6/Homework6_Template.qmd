@@ -1,0 +1,301 @@
+---
+title: "Homework 6"
+author: YOUR NAME HERE
+format: 
+  html:
+    embed-resources: true
+---
+
+
+As part of the homework, I have provided a zipped file called shoes that contains tiff images of 159 shoe prints. I have also provided a csv called Image-info.csv containing info on each of these shoes. 
+
+For this homework, we will set up functions and an automatic pipeline to:
+- read all of these shoes into R, 
+- transform them into tidy data frames,
+- trim the images to remove the ruler images along the boundary
+- convert the image into a cloud of points
+- use PCA to align this cloud of points
+
+One we've written this pipeline, we will then do some analysis of the aligned point clouds.
+
+# Question 1 [52 Points]
+
+```{r}
+#| message: FALSE
+#| warning: FALSE
+library(tidyverse)
+library(tiff)
+library(broom)
+theme_set(theme_bw())
+```
+
+## Part A [10 Points]
+
+Read all of the shoe images into a tibble named images_df. images_df should have 159 rows and two columns.
+
+One column should shoe be the file name of each shoe in the dataset. The other column should be a list column containing the output of readTIFF() for each file name.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part B [8 Points]
+
+Write a function called tidy_shoe_image that takes in the matrix output of readTIFF and returns a tibble with one row each for pixel in the image. The tibble should have three columns:
+
+x: the horizontal coordinate of the pixel in the image,
+y: the vertical coordinate of the pixel in the image,
+value: the value of the pixel,
+
+All three columns should be numeric. 
+
+```{r}
+# YOUR CODE HERE
+```
+
+Use this function to create include a new list column in images_df containing the tidy tibble for each image.
+
+```{r}
+# YOUR CODE HERE
+```
+
+
+## Part C [4 Points]
+
+Consider the following function.
+
+```{r}
+visualize_shoe_raster <- function(img_dat){
+  img_dat |>
+    ggplot(aes(x = x,
+               y = y,
+               fill = value)) +
+    geom_raster() +
+    coord_fixed() +
+    scale_fill_gradient(low = "black",
+                        high = "white") +
+    theme(legend.position = "none")
+}
+```
+
+Show that if you use this function on the tidy tibble corresponding to the file "002054L_20171027_2_1_1_csafe_tpashek.tiff", you get the following result.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part D [6 Points]
+
+Though the image above looks pretty good, note that the numbers around the side are not really part of the shoe image. 
+
+Write a function called remove_shoe_boundary that takes in a tidy tibble of the form we created above, then filters it to remove all pixels that are within 50 of the boundary of the image.  
+
+```{r}
+# YOUR CODE HERE
+```
+
+Use this function to make a new list column called img_noboundaries in images_df that contains the images without the boundary included.
+
+```{r}
+# YOUR CODE HERE
+```
+
+For instance, if you use visualize_shoe_raster() on the img_boundaries version of "002054L_20171027_2_1_1_csafe_tpashek.tiff", you should get the following result.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part E [4 Points]
+
+Next, we want to convert each shoe print image into a point cloud. Consider the function:
+
+```{r}
+get_shoe_cloud <- function(shoe){
+  shoe |>
+    filter(value < 0.5) |>
+    dplyr::select(x, y) 
+}
+```
+
+Use this function to create a new list column called shoe_cloud in images_df. This column should contain the point cloud obtained using get_shoe_cloud for each shoe in the dataset.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part F [2 Points]
+
+Consider the following function. 
+
+```{r}
+visualize_shoe_cloud <- function(img_dat){
+  img_dat |>
+    ggplot(aes(x = x, y = y)) +
+    geom_tile(width = 1, height = 1) +
+    coord_fixed()
+}
+```
+
+Use this function to visualize the point cloud for "002054L_20171027_2_1_1_csafe_tpashek.tiff". It should look like the following.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part G [10 Points]
+
+Write a function called align_shoe_cloud that uses PCA to align the shoe cloud such that the direction of most variation runs vertically. The aligned shoe should still be pointed toe-up, and not flipped.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Use this function to create a new column in images_df called shoe_cloud_aligned that contains all of the aligned shoe images. 
+
+```{r}
+# YOUR CODE HERE
+```
+
+
+Note: Ensuring the shoes do not get flipped is a difficult task. Use visualize_shoe_cloud() before and after the alignment to double-check that your function is properly correcting the flip of each image. As a hint, inspect the PCA rotation matrix for shoes that do get flipped, versus those that don't. You may notice a pattern that you can exploit to ensure the shoes are pointed upward.
+
+## Part H [8 Points]
+
+Now that you have the aligned shoe cloud, discard all columns from images_df except file_name and shoe_cloud_aligned.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Use this data frame and visualize_shoe_cloud() to create a faceted plot of the following 4 aligned shoes:
+
+- "002054L_20171027_2_1_1_csafe_tpashek.tiff"
+- "002054L_20171027_2_2_1_csafe_tpashek.tiff"
+- "002054L_20171027_2_1_2_csafe_tpashek.tiff"
+- "002054L_20171027_2_2_2_csafe_tpashek.tiff"
+
+It should resemble the following [hint: you can simply add facet_wrap() to the output of visualize_shoe_cloud()]
+
+```{r}
+# YOUR CODE HERE
+```
+
+# Question 2 [34 Points Total]
+
+Now, let's do some analysis of the data.
+
+## Part A [4 Points]
+
+Note that, on HuskyCT, I also shared the data file Image-info.csv. Read this file into R and make it into a tibble called image_info. Apply the janitor function clean_names() to clean up the names of the columns.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Join image_info and images_df into a single data frame with one row per shoe. Exclude any images for which there is no matching entry in Image_info. Name this new data frame shoes_df
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part B [10 Points]
+
+Create new columns for shoes_df called image_length and image_width that contains the vertical length of each shoe, and the horizontal width as measured by the distance between the most extreme pixels along that direction.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Create a scatter plot of shoe_width versus shoe_length colored by the variable shoe_size. Does the result match your expectations?
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part C [10 Points]
+
+Some of the shoes in our dataset are left shoes, and some are right shoes. Thankfully, the file_name tells us which is with by including an L or a R. Create a new column for shoes_df that indicates the "chirality" (left or rightness) of the shoe.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Recreate the following two faceted plots to show the typical shoe for each combination of size and chirality.
+
+10 Men's
+
+```{r}
+# YOUR CODE HERE
+```
+
+7 Women's 
+
+```{r}
+# YOUR CODE HERE
+```
+
+
+## Part D [10 Points]
+
+Note that our image set consists of images of five pairs of shoes being worn by their owners over a duration of time consisting of four visits with the experimenters for the shoes to be imaged.
+
+The variable shoe_number provides a unique identifier for each pair of shoes, the variable visit_number tells us which visit the shoe is being imaged on. At each visit, each shoe was imaged twice, with replicate_number indicating whether it was the first or second imaging.
+
+Suppose we want to investigate whether the amount of contact a shoe had with the ground varied as it was worn. To do this, we want to plot how the number of points in the point cloud of each shoe changes over time, averaged across the two replicates of each shoe.
+
+Do the required manipulations to reproduce the following plot.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Do you notice any sort of general trend?
+
+
+
+# Problem 3 [16 Points Total]
+
+Consider the got_chars dataset contained with the repurrrsive library.
+
+```{r}
+library(repurrrsive)
+game_of_thrones <- tibble(got_chars)
+```
+
+## Part A [6 Points]
+
+Use the game_of_thrones tibble to create a new tibble called got_allegiances with two columns: character_name and allegiance. It should have one row for each allegiance that each character has.
+
+```{r}
+# YOUR CODE HERE
+```
+
+Print out the entire data frame.
+
+```{r}
+# YOUR CODE HERE
+```
+
+## Part B [10 Points]
+
+Create a data frame called character_seasons with three columns: 
+- character_name, 
+- number_of_seasons, and 
+- first_appeared. 
+
+The column character_name should show the name of each character, the column number_of_seasons should tell how many seasons the character appeared in, and the column first_appeared should be a factor showing the first season of the show that the character appeared in. Information on season appearances can be found under $tvSeries. 
+
+If the character did not appear in any seasons, first_appeared should be set to NA, and number_of_seasons should be set to 0.
+
+```{r}
+# YOUR CODE HERE
+  
+```
+
+Print all rows of the data frame.
+
+```{r}
+# YOUR CODE HERE
+```
+

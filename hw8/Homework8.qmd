@@ -1,0 +1,389 @@
+---
+title: "Homework 8 Solutions"
+author: Ridhi Bandaru
+format: 
+  html:
+    embed-resources: true
+---
+
+## Problem 1 [43 Points Total]
+
+Consider the following "lazy cow" variant of cow patty bingo as described in Week 8 Lecture 1.
+
+Instead of each square on the field being equally likely to be chosen by the cow, we now assume that the cow is more likely to choose points that are close to the (0,0) square.
+
+Specifically, we assume that the probability of a particular square being chosen by the cow is proportional to $e^{-\sqrt{x^2 + y^2}}$, where $x$ and $y$ denote the coordinates of the square in the grid.
+
+### Part A [8 Points]
+
+Modify the following function so the squares of a particular square being chosen by the cow is proportional to $e^{-0.5\sqrt{x^2 + y^2}}$.
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+
+# MODIFY THE FOLLOWING FUNCTION
+
+cow_patty_bingo_lazy <- function(seed){
+  set.seed(seed)
+  
+  cow_grid <- expand_grid(x = 1:10,
+                        y = 1:10) |>
+  mutate(square_id = 1:n(),
+         .before = 1)|>
+  mutate(prob = exp(-0.5 * sqrt(x^2 + y^2)))
+  
+  winner <- cow_grid |>
+    pull(square_id) |>
+    sample(size = 1,
+           replace = FALSE,
+           prob = cow_grid |> pull(prob))
+  
+  cow_grid <- cow_grid |>
+    mutate(winner = if_else(square_id == winner,
+                            TRUE,
+                            FALSE))
+}
+```
+
+
+### Part B [5 Points]
+
+Modify the plotting code from the lecture to visualize running three games of cow patty Bingo with the lazy cow. Use seeds 1, 2, and 3.
+
+```{r}
+# YOUR SOLUTION HERE: seed = 1
+cow_grid_winner1 <- cow_patty_bingo_lazy(seed = 1)
+
+cow_grid_winner1 |>
+  ggplot(aes( x = x, y = y)) +
+  geom_tile(color = "black",
+            fill = "green") +
+   geom_point(data= cow_grid_winner1 |> filter(winner),
+            color = "brown",
+            size = 5,
+            shape = "X")
+
+cow_grid_winner1
+```
+
+
+```{r}
+# YOUR SOLUTION HERE: seed = 2
+cow_grid_winner2 <- cow_patty_bingo_lazy(seed = 2)
+
+cow_grid_winner2 |>
+  ggplot(aes( x = x, y = y)) +
+  geom_tile(color = "black",
+            fill = "green") +
+   geom_point(data= cow_grid_winner2 |> filter(winner),
+            color = "brown",
+            size = 5,
+            shape = "X")
+```
+
+```{r}
+# YOUR SOLUTION HERE: seed = 3
+cow_grid_winner3 <- cow_patty_bingo_lazy(seed = 3)
+
+cow_grid_winner3 |>
+  ggplot(aes( x = x, y = y)) +
+  geom_tile(color = "black",
+            fill = "green") +
+   geom_point(data= cow_grid_winner3 |> filter(winner),
+            color = "brown",
+            size = 5,
+            shape = "X")
+```
+
+### Part C [10 Points]
+
+Make a plot demonstrating the relative number of times each square was chosen in 1000 simulations.
+
+```{r}
+cow_trials <- tibble(trial_num = 1:1000) |>
+  rowwise()|>
+  mutate(cow_trial = list(cow_patty_bingo_lazy(seed = trial_num)))
+cow_trials_results <- cow_trials |>
+  unnest(cow_trial) |>
+  summarize(n_wins = sum(winner),
+            .by = c(square_id, x, y))
+
+cow_trials_results |>
+  ggplot(aes( x = x, y = y)) +
+  geom_tile(aes(fill = n_wins),
+            color = "black") +
+  scale_fill_gradient(low = "green",
+                      high = "brown")
+```
+
+How often does our square (square 42) get chosen? 
+
+```{r}
+cow_trials_results |>
+  filter(square_id == 42) 
+```
+
+It gets chosen 18 times.
+
+### Part D [20 Points]
+
+A lazy cow is allowed to to its business twice. Which of the following two scenarios are more likely?
+
+-   The two chosen squares have an odd value for both x and y.
+
+-   The two chosen squares are immediately adjacent to each other (including diagonals), but not the same square. Examples: {(0,1) and (0,2)}, {(4,3) and (5,4)}, {(3,4) and (2,3)}.
+
+Use simulation to justify your answer.
+
+```{r}
+cow_patty_bingo_lazy_sims <- function(seed){
+  set.seed(seed)
+  
+  cow_grid <- expand_grid(x = 1:10,
+                        y = 1:10) |>
+  mutate(square_id = 1:n(),
+         .before = 1)|>
+  mutate(prob = exp(-0.5 * sqrt(x^2 + y^2)))
+  
+  winners <- cow_grid |>
+    pull(square_id) |>
+    sample(size = 2,
+           replace = TRUE,
+           prob = cow_grid |> pull(prob))
+  
+  winner1 = winners[1]
+  winner2 = winners[2]
+  x1 = ((winner1+1) %/% 10) + 1
+  y1 = winner1 %% 10
+  if (y1 == 0){
+    y1 = 10
+  }
+  x2 = ((winner2+1) %/% 10) + 1
+  y2 = winner2 %% 10
+  if (y2 == 0){
+    y2 = 10
+  }
+  
+  out <- c(winner1,winner2,x1,y1,x2,y2)
+  
+  scene1 = if_else(x1 %% 2 != 0 & y1 %% 2 != 0 & x2 %% 2 != 0 & y2 %% 2 != 0, TRUE, FALSE)
+  scene2 = if_else((( x1-x2 == 1 | x2-x1==1 ) & y2-y1 == 0) |
+                   (( y1-y2 == 1 | y2-y1==1 ) & x2-x1 == 0) |
+                   (( x1-x2 == 1 | x2-x1==1 ) & ( y1-y2 == 1 | y2-y1==1 )),
+                   TRUE, FALSE)
+  
+  result <- tibble(
+    scene_1 = scene1,
+    scene_2 = scene2
+  )
+    
+}
+
+print(cow_patty_bingo_lazy_sims(seed=1)) # checking
+```
+
+```{r}
+sim_trials <- tibble(trial_num = 1:1000) |>
+  rowwise()|>
+  mutate(cow_trial = list(cow_patty_bingo_lazy_sims(seed = trial_num)))
+sim_trials_results <- sim_trials |>
+  unnest(cow_trial) |>
+  summarize(scene1 = sum(scene_1)/1000,
+            scene2 = sum(scene_2)/1000)
+sim_trials_results
+```
+
+The second scenario where the two chosen squares are immediately adjacent to each other (including diagonals), but not the same square, is more likely, with a probability of 19.2%, while the first scenario of all odd coordinates has a probability of only 10.2%. This conclusion is drawn upon running a simulation of 1000 trials.
+
+## Problem 2: [17 Points Total]
+
+Recall the palmerpenguins dataset.
+
+```{r}
+library(palmerpenguins)
+
+penguins |> 
+  glimpse()
+```
+
+### Part A [12 Points]
+
+Use a permutation test to assess whether or not Adelie penguins and Chinstrap penguins have the same mean flipper length.
+
+```{r}
+penguins_dat <- penguins |> 
+  drop_na(flipper_length_mm) |>
+  filter(species != "Gentoo")
+
+summary_dat <- penguins_dat |>
+  summarize(mean_flip = mean(flipper_length_mm), 
+            n_penguins = n(),
+            .by = species)
+
+Tobs <- summary_dat$mean_flip[1] - summary_dat$mean_flip[2] 
+
+Tobs
+```
+
+```{r}
+set.seed(7)
+labels_permuted <- sample(penguins_dat$species, length(penguins_dat$species))
+shuffle_penguins <- function(seed,
+                             penguins_dat){
+  set.seed(seed)
+  
+  penguins_dat |>
+    mutate(labels_permuted = sample(penguins_dat$species, length(penguins_dat$species)))
+}
+permutation_penguins <- tibble(simulation_num = 1:500) |>
+  rowwise() |>
+  mutate(shuffled_df = list(shuffle_penguins(simulation_num,
+                                             penguins_dat)))
+
+permutation_penguins <- permutation_penguins |>
+  mutate(mean_flip_Adelie = shuffled_df |>
+           filter(labels_permuted == "Adelie") |>
+           pull(flipper_length_mm) |>
+           mean()) |>
+  mutate(mean_flip_Chinstrap = shuffled_df |>
+           filter(labels_permuted == "Chinstrap") |>
+           pull(flipper_length_mm) |>
+           mean()) |>
+  mutate(mean_flip_diff = mean_flip_Adelie - mean_flip_Chinstrap)
+```
+
+```{r}
+permutation_penguins |>
+  mutate(type = "simulated") |>
+  ggplot(aes(x = mean_flip_diff,
+             fill = type,
+             color = type)) +
+  geom_histogram() +
+  geom_point(aes(fill = "Observed",
+                 color = "Observed",
+                 x = Tobs,
+                 y = 0),
+             shape = 21,
+             size = 3)
+```
+```{r}
+values <- permutation_penguins |>
+  pull(mean_flip_diff) |>
+  abs() 
+
+mean(abs(Tobs) < values)
+```
+
+From the simulations above, there is no way these two species have the same flipper length. The observed mean flipper length is not at all in the simulated distribution.
+
+### Part B [5 Points]
+
+Use a Kolmogorov-Smirnov test to assess whether Adelie Penguins and Chinstrap penguins have the same distribution for flipper length.
+
+```{r}
+dat <- penguins |>
+  drop_na(flipper_length_mm)
+
+penguins_adelie <- dat |>
+  filter(species == "Adelie")
+penguins_chinstrap <- dat |>
+  filter(species == "Chinstrap")
+
+ks.test(penguins_adelie |> pull(flipper_length_mm),
+        penguins_chinstrap |> pull(flipper_length_mm))
+```
+
+Due to the small p-value, there is enough evidence to reject the hypothesis that they have they have the same mean flipper length. This concurs with the conclusion we arrived at earlier with the simulations too.
+
+## Problem 3: [40 Points Total]
+
+Use random number simulation to solve the following problems.
+
+### Part A: [15 Points]
+
+Consider the functions:
+
+$$ f(x) = x^2 \log(x)^2 $$
+
+and
+
+$$ g(x) = x^2 + \log(x)^2 $$
+
+Suppose that $X$ follows a gamma distribution with shape parameter 2 and rate parameter 2. Is the expected value of $g(X)$ greater than the expected value of $f(X)$?
+
+```{r}
+X <- rgamma(1000, shape = 2, rate = 2)
+
+f <- function(x){
+  res <- x^2 * log(x)^2
+  return(res)
+}
+
+g <- function(x){
+  res <- x^2 + log(x)^2
+  return(res)
+}
+
+exp_f_X <- X |>
+  f() |>
+  mean()
+
+exp_g_X <- X |>
+  g() |>
+  mean()
+
+exp <- tibble(
+  E_fX = exp_f_X,
+  E_gX = exp_g_X
+)
+
+exp
+```
+
+Yes, the expected value of $g(X)$ is greater than the expected value of $f(X)$.
+
+### Part B: [10 Points]
+
+Suppose that $X$ follows a uniform(0,1) distribution. Use the Kolmogorov Smirnov test to assess whether $-\log(X)$ follows an exponential distribution with rate = 1. Use 10000 draws in your simulation.
+
+```{r}
+
+set.seed(123)
+n <- 10000
+X <- runif(n)
+Y <- -log(X)
+
+ks_result <- ks.test(Y, "pexp", rate = 1)
+
+ks_result
+```
+
+We get a large p-value, showing we do not have enough evidence to reject the null hypothesis that -log(X) follows an exponential distribution with rate = 1.
+
+### Part C: [15 Points]
+
+We are an lightning insurance company pricing a policy for the dam. If the dam gets hit 0 or 1 times in a day, the dam will not break. However, if it gets hit 2 or more times, it will break and cause a flood, incurring a large cost.
+
+Let $X$ denote the number of lightning strikes hitting the dam in a day. Suppose $X$ follows a Poisson distribution with mean $\lambda = 0.01$. In a given day, the lightning-related damage incurred by the dam has a cost of $C(X) = 1000 \times X(X-1)e^{-X}$. What is the expected cost of the damage to a dam in a day?
+
+Please provide a confidence interval for your approximation. Ensure the confidence interval has a width smaller than one.
+
+```{r}
+library(coda)
+
+X <- rpois(100000, lambda = 0.01)
+
+cost <- function(x) {
+    ifelse(x < 2, 0, (1000 * x * (x - 1) * exp(-x)))
+}
+
+cost_x <- cost(X)
+
+expected_cost <- mean(cost_x)
+ci <- c(mean(cost_x) - 2* sd(cost_x)/sqrt(effectiveSize(cost_x)), 
+  mean(cost_x) + 2* sd(cost_x)/sqrt(effectiveSize(cost_x)))
+
+cat("expected cost:", expected_cost, "\n")
+cat("confidence interval:", ci)
+```

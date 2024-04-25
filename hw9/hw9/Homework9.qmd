@@ -1,0 +1,358 @@
+---
+title: "Homework 9 Solutions"
+author: "Ridhi Bandaru"
+format: 
+  html:
+    embed-resources: true
+---
+
+The goal of this week's homework is to practice fitting models using workflows. For our analysis, I have modified the data from the schrute package. 
+
+These new data are provided on HuskyCT as theoffice_new.Rda.
+
+```{r}
+#| message: FALSE
+#| warning: FALSE
+library(tidyverse)
+library(tidymodels)
+theme_set(theme_bw())
+tidymodels_prefer()
+load("theoffice_new.Rda")
+
+theoffice_new |>
+  glimpse()
+```
+
+Each of the 186 rows in this dataset corresponds an episode of The Office. There 85 columns (variables) described as follows: 
+
+- season: a factor describing the season number of the episode.
+
+- episode: an integer describing its episode number placement within the season.
+
+- season_percentage: derived from episode. It is a number within [0,1] describing how far along in the season the episode occurs. For instance, the final season for each episode is 1 [100 percent of the way through the season], the first episode is near 1/(Total number of episodes in the season).
+
+- imdb_rating: the average numerical score [out of 10] of this episode as rated by imdb users. This variable will be our response variable.
+
+- director: a factor describing the director of the episode.
+
+- dialog_share_(character) variables: a group of variables describing the percentage of lines of dialog spoken by the character (or group of characters) in an episode. Characters who had dialog in four or fewer episodes of the series are pooled into an "other" category. 
+
+- writer_(name) variables: variables indicating whether or not the named writer is credited for the episode. Writers credited with four or fewer episodes are grouped together as "other". If more than one "other" writers is credited on an episode, the writer_other variable will give the count of "other" writers credited.
+
+If you would like to see the code I used to modify this data from the form it was provided in the schrute package, I have provided it as theoffice_new.R on HuskyCT.
+
+# Problem 1 [No credit. Just run the code after loading the data.]
+
+Let's begin by doing a test-train split of the data.
+
+```{r}
+set.seed(12)
+theoffice_split <- initial_split(theoffice_new, 
+                                 prop = 0.8)
+
+theoffice_train <- theoffice_split |>
+  training()
+
+theoffice_test <- theoffice_split |>
+  testing()
+```
+
+We will use this test-train split going forward.
+
+## Problem 2 [85 Points Total]
+
+### Part A [20 points]
+
+Using a workflow and the training data, fit a least squares linear regression model with imdb_rating as the response and the season factor as the only predictor. 
+
+```{r}
+# INSERT PARSNIP DEFINITION HERE
+
+parsnip_lm <- linear_reg() |> 
+  set_engine("lm") |> 
+  set_mode("regression") 
+```
+
+```{r}
+# INSERT WORKFLOW DEFINITION HERE
+
+lm_workflow <- workflow() |>
+  add_model(parsnip_lm) |>
+  add_formula(imdb_rating ~ season)
+```
+
+```{r}
+# INSERT MODEL FITTING CODE HERE
+
+lm_fit <- lm_workflow |>
+  fit(theoffice_train)
+
+lm_fit |>
+  tidy()
+```
+
+According to your model fit, which season is estimated to have the highest positive rating effect? 
+
+```{r}
+lm_fit |>
+  tidy() |>
+  arrange(desc(estimate)) |>
+  head(2)
+```
+
+Season 4 is estimated to have the highest positive rating effect. We're not considerinf Season1. because it is the intercept, and the estimates of the rest of the seasons must be added to the interecept. So for Season 4 it is 8.01+0.58.
+
+
+Which season is estimated to have the lowest rating effect?
+
+```{r}
+lm_fit |>
+  tidy() |>
+  arrange(estimate) |>
+  head(1)
+```
+
+Season 8 is estimated to have the lowest rating effect.
+
+Visualize the effects of each season. It should resemble the following.
+
+```{r}
+library(ggplot2)
+theme_set(theme_bw())
+
+lm_fit |>
+  tidy() |>
+  filter(term != "(Intercept)") |>
+  ggplot(aes(x = estimate, y = term)) +
+  geom_bar(stat = "identity") +
+  labs(x = "estimate",
+       y = "term")
+```
+
+Why isn't there an estimated coefficient for Season 1?
+
+There isn't an estimated coefficient for season 1 because it is taken as the intercept, and so that itself is the true estimate for it or 8.01 + 0.
+
+### Part B [25 points]
+
+Using a recipe-based workflow and the training data, fit a LASSO linear regression model with imdb_rating as the response and all remaining variables as predictors. Use a lasso penalty of 0.01.
+
+The recipe should consist of three steps in the following order.
+
+- For the director variable, create an "other" category for all directors who directed 2 percent or fewer of the episodes. step_other() should be used for this.
+
+- step_dummy() to turn all nominal predictors into factors.
+
+- step_normalize() to normalize all the predictors.
+
+```{r}
+# INSERT PARSNIP DEFINITION HERE
+
+parsnip_lasso <- linear_reg(penalty = 0.01) |> 
+  set_engine("glmnet") |> 
+  set_mode("regression")
+```
+
+```{r}
+# INSERT RECIPW DEFINITION HERE
+
+recipe_office <- recipe(data = theoffice_train,
+                      formula = imdb_rating ~ .) |>
+  step_other(director, threshold = 0.02, other = "Other") |>
+  step_dummy(all_nominal_predictors()) |>
+  step_normalize(all_predictors())
+  
+```
+
+```{r}
+# INSERT WORKFLOW DEFINITION HERE
+
+lasso_workflow <- workflow() |>
+  add_model(parsnip_lasso) |>
+  add_recipe(recipe_office)
+```
+
+```{r}
+# INSERT MODEL FITTING CODE HERE
+
+lasso_fit <- lasso_workflow |>
+  fit(theoffice_train)
+```
+
+In this model, which character's dialog is estimated to have the highest positive effect on episode rating? 
+
+```{r}
+# INSERT SOLUTION HERE
+
+lasso_fit |>
+  tidy() |>
+  mutate(characters = str_extract(term, "(?<=dialog_share_).+")) |>
+  filter(!is.na(characters)) |>
+  select(characters, estimate) |>
+  arrange(desc(estimate)) |>
+  head()
+```
+
+Michael.
+
+Which writer is estimated to have the highest positive effect on episode rating?
+
+```{r}
+lasso_fit |>
+  tidy() |>
+  mutate(writer = str_extract(term, "(?<=writer_).+")) |>
+  filter(!is.na(writer)) |>
+  select(writer, estimate) |>
+  arrange(desc(estimate)) |>
+  head()
+```
+
+Greg Daniels
+
+Which director is estimated to have the lowest effect on episode rating?
+
+```{r}
+lasso_fit |>
+  tidy() |>
+  mutate(director = str_extract(term, "(?<=director_).+")) |>
+  filter(!is.na(director)) |>
+  select(director, estimate) |>
+  arrange((estimate)) |>
+  head()
+```
+
+Randall Einhorn
+
+### Part C [20 points]
+
+Using a workflow and the training data, fit a random forest model with imdb_rating as the response and all remaining variables as predictors.
+
+```{r}
+# INSERT SOLUTION HERE (parsnip, Workflow, fitting, etc.)
+
+parsnip_rf <- rand_forest() |>
+    set_engine("ranger") |>
+  set_mode("regression")
+
+rf_workflow <- workflow() |>
+  add_model(parsnip_rf) |>
+  add_formula(imdb_rating ~ .)
+
+rf_fit <- rf_workflow |>
+  fit(theoffice_train)
+
+rf_predictions <- rf_fit |>
+  predict(theoffice_test)
+```
+
+Which episode in the test set does this random forest model predict will have the highest rating?
+
+```{r}
+data_with_rf_predictions <- theoffice_test |>
+  bind_cols(rf_predictions)
+
+data_with_rf_predictions |>
+  arrange(desc(imdb_rating)) |>
+  head()
+```
+
+Episode 19, Season 3
+
+Which episode in the test set does this random forest model predict will have the lowest rating?
+
+```{r}
+data_with_rf_predictions |>
+  arrange((imdb_rating)) |>
+  head()
+```
+
+Episode 8, Season 8
+
+### Part D [20 points]
+
+Using a workflow and the training data, fit a k-nearest neighbors model with imdb_rating as the response and all remaining variables as predictors. Use 3 neighbors. Hint: you'll need to load the kknn library.
+
+```{r}
+# INSERT SOLUTION HERE (parsnip, Workflow, fitting, etc.)
+library(kknn)
+
+knn_parsnip <- nearest_neighbor(neighbors = 3) |>
+  set_engine("kknn") |>
+  set_mode("regression")
+  
+knn_workflow <- workflow() |>
+  add_model(knn_parsnip) |>
+  add_formula(imdb_rating ~ .)
+
+knn_fit <- knn_workflow |>
+  fit(data = theoffice_train)
+
+knn_predictions <- knn_fit |>
+  predict(theoffice_test)
+
+data_with_knn_predictions <- theoffice_test |>
+  bind_cols(knn_predictions)
+```
+
+How many episodes in the test set does this model predict to have average ratings scores above 8?
+
+```{r}
+
+data_with_knn_predictions |>
+  arrange((imdb_rating)) |>
+  filter(imdb_rating>8) |>
+  count()
+
+```
+
+25
+
+How many does it predict will have a score below 7.5?
+
+```{r}
+data_with_knn_predictions |>
+  arrange((imdb_rating)) |>
+  filter(imdb_rating < 7.5) |>
+  count()
+```
+4
+
+## Problem 3 [15 points]
+
+For each of the four models in part B, generate predictions for all of the episodes in the test set.
+
+```{r}
+predictions <- bind_cols(
+  predict(lm_fit, new_data = theoffice_test) |> pull(.pred),
+  predict(lasso_fit, new_data = theoffice_test) |> pull(.pred),
+  predict(rf_fit, new_data = theoffice_test) |> pull(.pred),
+  predict(knn_fit, new_data = theoffice_test) |> pull(.pred),
+)
+
+results <- bind_cols(
+  theoffice_test |> select(imdb_rating),
+  predictions
+)
+
+results_long <- results |>
+  rename("1" = ...2,
+         "2" = ...3,
+         "3" = ...4,
+         "4" = ...5) |>
+  pivot_longer(cols = c("1","2","3","4"),
+               names_to = "Model",
+               values_to = "Predicted")
+```
+
+Create a faceted plot showing the predicted value versus the true imdb_rating for each test episode and each model. It should resemble the following---but don't worry if it isn't exactly the same.
+
+Hint: coord_obs_pred() is a helpful setting to add to the plot to make it look nice. Facet 1 is for the model in Part A, Facet 2 is for the model in Part B, etc.
+
+```{r}
+ggplot(results_long, aes(x = imdb_rating, y = Predicted)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~ Model) +
+  labs(y = "prediction") +
+  coord_obs_pred() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dotted", color = "red")
+```

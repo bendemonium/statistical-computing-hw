@@ -1,0 +1,309 @@
+---
+title: "Homework 3"
+author: "Ridhi Bandaru"
+format: 
+  html:
+    embed-resources: true
+---
+
+# Problem 1 [25 Points Total]
+
+I have shared the_office_data.csv on HuskyCT. It is a dataset consisting of one row for each episode of the office.
+
+## Part A [5 points]
+
+Read the dataset into R.
+
+```{r}
+library(tidyverse)
+library(readr)
+office <- read_csv("the_office_data.csv")
+office |>
+  glimpse()
+```
+
+## Part B [10 Points]
+
+Use the tidyverse to recreate the following bar chart displaying the number of episodes written by the top 10 most common "The Office" writers.
+
+```{r}
+
+library(ggplot2)
+theme_set(theme_bw())
+
+office |>
+  separate_rows(writer, sep = ";") |>
+  group_by(writer) |>
+  count() |>
+  arrange(desc(n)) |>
+  head(10) |>
+  ggplot(aes(x = n, y = reorder(writer, n))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Number of Episodes",
+       y = "Writer")
+```
+
+## Part C [10 Points]
+
+Recreate the following plot displaying the number of office episodes originally aired in each month of the year.
+
+```{r}
+
+office |>
+  mutate(month = sub("^\\d{4}-(\\d{2})-\\d{2}$", "\\1", air_date)) |>
+  mutate(month = as.integer(month)) |>
+  group_by(month) |>
+  count() |>
+  ggplot(aes(x = month, y = n)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Airing Month Number",
+       y = "Number of The Office Episodes") +
+  scale_x_continuous(limits = c(0.5, 12.5), breaks = seq(0, 13, 1), minor_breaks = seq(0,13,0.5)) 
+  
+```
+
+
+# Problem 2 [35 Points Total]
+
+## Part A [15 Points]
+
+On HuskyCT I have shared a zipped file of 9 jpg images, each depicting a handwritten digit 1-9. Use the readJPEG from the jpeg package to read in each of these images. Assemble them into a single tidy data frame with one row for each pixel in each image. 
+
+Each image consists of 28 by 28 pixels, so in total the data frame should have 7056 rows. Columns should be x, y, value (for the pixel value), and digit (dictating which digit image it came from)
+
+```{r}
+library(tiff)
+library(raster)
+library(jpeg)
+library(tidyverse)
+library(dplyr)
+
+file_paths <- c("digits/img_1.jpg",
+                "digits/img_2.jpg",
+                "digits/img_3.jpg",
+                "digits/img_4.jpg",
+                "digits/img_5.jpg",
+                "digits/img_6.jpg",
+                "digits/img_7.jpg",
+                "digits/img_8.jpg",
+                "digits/img_9.jpg")
+
+values <- numeric(0)
+for (path in file_paths){
+  image <- readJPEG(path)
+  values <- c(values, as.vector(image))
+}
+
+images <- data.frame(
+  x = rep(rep(1:28, each = 28), times = 9),
+  y = rev(rep(rep(1:28, times = 28), times = 9)),
+  value = values,
+  digit = rep(1:9, each = 784)
+)
+
+images <- images |>
+  group_by(digit, x) |>
+  arrange(y)
+
+images
+```
+
+## Part B [5 Points]
+
+Use the tidy data frame from part A to recreate the following faceted plot.
+
+```{r}
+
+images |>
+  ggplot(aes(x = x, y = y, fill = value)) +
+  geom_tile() +
+  facet_wrap(~digit) +
+  scale_fill_gradient(low = "white", high = "black") +
+  theme(aspect.ratio = 1)
+
+```
+
+## Part C [5 Points]
+
+List the digits in order of the sum of their pixel intensities (hint: 1 has the lowest, 5 has the highest.)
+
+```{r}
+images |>
+  group_by(digit) |>
+  summarise(sum = sum(value)) |>
+  arrange(sum)
+```
+Digits in the order of the sum of their pixel intensities: [1, 4, 8, 9, 7, 2, 6, 3, 5]
+
+
+## Part D [5 Points]
+
+Recreate the following image that reflects the "average" image across the ten images.
+
+```{r}
+images |>
+  group_by(x, y) |>
+  summarise(avg = mean(value)) |>
+  ggplot(aes(x = x, y = y, fill = avg)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", name="value") +
+  theme(aspect.ratio = 1)
+```
+
+## Part E [5 Points]
+
+Which pixel coordinate (x,y) value the highest average intensity across the ten digits?
+
+```{r}
+images |>
+  group_by(x, y) |>
+  summarise(avg = mean(value)) |>
+  arrange(desc(avg)) |>
+  head(1)
+```
+
+(15,13) has the highest average intensity across the nine digits at 0.7651416.
+
+# Problem 3 [25 Points Total]
+
+The wikipedia webpage on elections in Connecticut, available at https://en.wikipedia.org/wiki/Elections_in_Connecticut, provides a table titled United States presidential election results for Connecticut.
+
+The problem steps are as follows:
+
+- (A) use rvest to scrape this data from web,
+- (B) use tidyverse and janitor functions to tidy it,
+- (C) use ggplot2 to recreate the following plot.
+
+## Part A [10 Points]
+
+```{r}
+
+library(rvest)
+
+url <- "https://en.wikipedia.org/wiki/Elections_in_Connecticut"
+
+html <- url |>
+  read_html() |>
+  html_table()
+
+election_results <- html[9] |>
+  as.data.frame()
+
+election_results |> 
+  glimpse()
+
+```
+
+## Part B [10 Points]
+
+```{r}
+election_results_tidy <- election_results[-1, ] |>
+  mutate(Year = as.integer(Year),
+         Republican...Whig.1 = as.numeric(gsub("%", "", Republican...Whig.1)),
+         Democratic.1 = as.numeric(gsub("%", "", Democratic.1)),
+         Third.party.1 = as.numeric(gsub("%", "", Third.party.1)),
+         Republican...Whig = as.numeric(gsub(",", "", Republican...Whig)),
+         Democratic = as.numeric(gsub(",", "", Democratic)),
+         Third.party = as.numeric(gsub(",", "", Third.party))) |>
+  glimpse()
+```
+
+## Part C [5 Points]
+
+```{r}
+election_results_tidy |>
+  ggplot(aes(x = Year)) +
+  geom_line(aes(y = Republican...Whig.1, color = "republican")) +
+  geom_line(aes(y = Democratic.1, color = "democrat")) +
+  geom_line(aes(y = Third.party.1, color = "third_party")) +
+  geom_point(aes(y = Republican...Whig.1, color = "republican")) +
+  geom_point(aes(y = Democratic.1, color = "democrat")) +
+  geom_point(aes(y = Third.party.1, color = "third_party")) +
+  scale_color_manual(values = c("republican" = "red", "democrat" = "blue", "third_party" = "darkgreen"), name = "Political Party") +
+  labs(title = "Connecticut Presidential Election Voting",
+       x = "Election Year",
+       y = "Voting Share") +
+  theme(legend.position = "bottom")
+```
+
+
+# Problem 4 [15 Points]
+
+Use the readxl package to read in the data provided in State_to_State_Migrations_Table_2019.xls. Use janitor and tidyverse functions to clean and tidy this data. The result should match the format in state_network_moe.csv. 
+
+Note that state_network_moe.csv contains even more information than the version we obtained as an example in class. Namely, it contains the margin of error (moe) for the movement estimates, and also includes Puerto Rico.
+
+Note: I found this problem very challenging, but I want to expose you all to the difficulties of cleaning real datasets. Don't hesitate to reach out during office hours or brainstorm together with your peers. There are multiple ways to attack this problem; your final solution does not have to be elegant. 
+
+Hint: the following is how my solution starts.
+
+```{r}
+
+library(readxl)
+
+raw_data <- read_excel("State_to_State_Migrations_Table_2019.xls",
+                     range = "A2:DA55")
+raw_data <- raw_data |>
+  rename(State_arrived = ...1) 
+
+column_names <- names(raw_data)
+
+for (i in seq_along(column_names)) {
+  if (i %% 2 != 0 && i > 1) {
+    new_name <- paste0(column_names[i - 1], "_moe")
+    raw_data <- raw_data |>
+      rename_with(~ new_name, .cols = i)
+  }
+}
+
+for (i in seq_along(column_names)) {
+  if (i %% 2 == 0) {
+    new_name <- paste0(column_names[i], "_estimate")
+    raw_data <- raw_data |>
+      rename_with(~ new_name, .cols = i)
+  }
+}
+
+raw_data <- as.data.frame(lapply(raw_data, function(x) x[-1]))
+
+raw_data <- raw_data |>
+  pivot_longer(-State_arrived, names_to = "Type", values_to = "Value") |>
+  separate(Type, into = c("State", "Type"), sep = "_", extra = "merge") |>
+  pivot_wider(names_from = Type, values_from = Value)
+
+raw_data <- raw_data |>
+  rename(state_departed = State,
+         movement_estimate = estimate,
+         movement_moe = moe) |>
+  mutate(across(starts_with("movement_"), as.integer))
+
+raw_data$State_arrived <- gsub("\\.", " ", raw_data$State_arrived)
+raw_data$state_departed <- gsub("\\.", " ", raw_data$state_departed)
+
+raw_data |>
+  glimpse()
+
+raw_data
+```
+
+```{r}
+state_moe <- read.csv("state_network_moe.csv")
+
+# check if the tables match
+if(all(names(state_moe) == names(raw_data))) {
+  print("Column names match.")
+} else {
+  print("Column names do not match.")
+}
+
+# Check if all rows are included
+anti_join(state_moe, raw_data) |>
+  summarise(rows_not_in_raw_data = n())
+
+```
+
+Both of them are the same now. The changes we wanted have been made and the goal has been accomplished.
+
+IN THE CASE YOU ARE UNABLE TO FULLY COMPLETE THIS PROBLEM, DESCRIBE WHERE YOU GOT STUCK HERE, AND WHAT YOU WISHED YOU COULD DO TO GET AROUND IT [+3 BONUS POINTS].
+
+

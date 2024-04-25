@@ -1,0 +1,1021 @@
+---
+title: "Homework 7"
+author: "Ridhi Bandaru"
+format: 
+  html:
+    embed-resources: true
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+# Question 1 [85 points Total] 
+
+This question continues working with the hand data we used in Week 7 Lecture 2. 
+
+During class, I walked through an example exploring the missing values in hand_train_1.Rda. I proposed several strategies for dealing with the missing handcircumference variables.
+
+For each strategy, I fit a logistic regression model relating sex to hand measurements. I evaluated all of the models on a held out test set called hand_test.Rda.
+
+Below, we will walk through a similar set of steps for datasets hand_train_2.Rda and hand_train_3.Rda, available on HuskyCT.
+
+```{r}
+library(tidyverse)
+library(broom)
+theme_set(theme_bw())
+```
+
+## Part A [18 Points Together]
+
+### Component (i) [3 Points]
+
+Load in hand_train_2.Rda and hand_train_3.Rda. Use functions from the naniar package and the visdat package to visualize the missingness pattern for both datasets.
+
+```{r}
+load("hand_train_2.Rda")
+load("hand_train_3.Rda")
+library("visdat")
+library("naniar")
+```
+
+
+```{r}
+hand_train_2 |>
+  vis_dat()
+```
+```{r}
+hand_train_2 |>
+  vis_miss()
+```
+
+```{r}
+hand_train_3 |>
+  vis_dat()
+```
+```{r}
+hand_train_3 |>
+  vis_miss()
+```
+
+
+
+### Component (ii) [3 Points]
+
+How many NA entries are in each dataset? Which column(s) are they missing from?
+
+```{r}
+hand_train_2 |>
+  miss_var_summary()
+```
+In hand_train_2, 58 entries are missing in handcircumference, which is 29% of the total entries. The rest of the columns don't have any missing entries.
+
+```{r}
+hand_train_3 |>
+  miss_var_summary()
+```
+In hand_train_3 as well, 58 entries are missing in handcircumference, which is 29% of the total entries. The rest of the columns don't have any missing entries.
+
+### Component (iii) [4 Points]
+
+For each of the two datasets, create a scatterplot showing the relationship between handcircumference and handlength. Plot it in such a way that missing values can still be seen.
+
+```{r}
+hand_train_2 |>
+  ggplot(aes(x = handcircumference,
+             y = handlength)) +
+  geom_miss_point()
+```
+
+```{r}
+hand_train_3 |>
+  ggplot(aes(x = handcircumference,
+             y = handlength)) +
+  geom_miss_point()
+```
+
+### Component (iv) [4 Points]
+
+Use violin plots to compare the distribution of handlength based on whether or not handcircumference is missing in each dataset.
+
+```{r}
+hand_train_2 |>
+  ggplot(aes(x = handlength,
+             y = is.na(handcircumference),
+             fill = is.na(handcircumference))) +
+  geom_violin()
+```
+In hand_train_2, handlength is usually greater for those with missing missing handcircumference values.
+
+```{r}
+hand_train_2 |>
+  ggplot(aes(x = handlength,
+             y = is.na(handcircumference),
+             fill = is.na(handcircumference))) +
+  geom_violin()
+```
+In hand_train_3 as well, handlength is usually greater for those with missing missing handcircumference values.
+
+### Component (v) [4 Points]
+
+For each of the two datasets, formally test if the data is missing completely at random. Report your results
+
+```{r}
+hand_train_2 |>
+  mcar_test()
+```
+For hand_train_2, the very small p-value indicates that there is ample evidence to reject the null hypothesis that the data are MCAR.
+
+```{r}
+hand_train_3 |>
+  mcar_test()
+```
+For hand_train_3 too, the very small p-value indicates that there is ample evidence to reject the null hypothesis that the data are MCAR.
+
+## Part B [40 Points Together]
+
+Now, we will consider using hand_train_2 and hand_train_3 to fit a logistic regression predicting Sex based on the remaining variables. For each component, we will use a different strategy for handling the missing data.
+
+For each strategy and each dataset, display a tidy table of your estimated regression coefficients, and provide a scatterplot with handlength on the horizontal axis and handcircumference on the vertical axis. 
+
+Unless otherwise specified, the horizontal axis for the plots should go from 150 to 230, and the vertical axis for the plots should go from 150 to 250.
+
+The points on the scatterplots should be shaped according to whether they were imputed, and colored according to sex.Note that these instructions differ slightly from the figures I made in the notes.
+
+### Component (i) [5 Points]
+
+Strategy: Observation Deletion. 
+
+Note: When making the scatterplots, display the values of handlength corresponding to missing values of handcircumference using a rugplot. Just like for the points, color the ticks in the rugplot according to their Sex.
+
+Tables:
+
+hand_train_2
+
+```{r}
+logistic_train_2 <- hand_train_2 |>
+  mutate(sex = if_else(sex == "Male", 1, 0))
+fit2_drop <- logistic_train_2 |>
+  drop_na(handcircumference) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_drop |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+logistic_train_3 <- hand_train_3 |>
+  mutate(sex = if_else(sex == "Male", 1, 0))
+fit3_drop <- logistic_train_3 |>
+  drop_na(handcircumference) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_drop |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+ggplot(data = logistic_train_2, aes(x = handcircumference, y = handlength, color = as.factor(sex))) +
+  geom_point() + 
+  geom_rug(data = subset(logistic_train_2, is.na(handcircumference)), aes(y = handlength)) +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+hand_train_3
+
+```{r}
+ggplot(data = logistic_train_3, aes(x = handcircumference, y = handlength, color = as.factor(sex))) +
+  geom_point() + 
+  geom_rug(data = subset(logistic_train_3, is.na(handcircumference)), aes(y = handlength)) +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (ii) [5 Points]
+
+Strategy: Variable Deletion
+
+Note: For the scatterplot, plot all the values of handcircumference are 0. Don't adjust the vertical axis scale from the default.
+
+Tables:
+
+hand_train_2
+
+```{r}
+fit2_select <- logistic_train_2 |>
+  select(-handcircumference) |>
+  glm(sex ~ handbreadth + handlength,
+            family = binomial,
+            data = _)
+fit2_select |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_select <- logistic_train_3 |>
+  select(-handcircumference) |>
+  glm(sex ~ handbreadth + handlength,
+            family = binomial,
+            data = _)
+fit3_select |>
+  tidy()
+```
+
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+ggplot() +
+    geom_point(data = fit2_select, aes(x = handlength, y = 0, color = as.factor(sex))) +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+ggplot() +
+    geom_point(data = fit3_select, aes(x = handlength, y = 0, color = as.factor(sex))) +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+
+### Component (iii) [5 Points]
+
+Strategy: Missingness Indicator
+
+Note: For the scatterplot, calculate the implied imputation value obtained using the method outlined in the course notes, and use this as the imputed value for all the points.
+
+Tables:
+
+hand_train_2
+
+```{r}
+fit2_factor <-  logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  replace_na(list(handcircumference = 0)) |>
+  glm(sex ~ handcircumference + handlength + handbreadth + handcircumference_NA,
+            family = binomial,
+            data = _)
+fit2_factor |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_factor <-  logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  replace_na(list(handcircumference = 0)) |>
+  glm(sex ~ handcircumference + handlength + handbreadth + handcircumference_NA,
+            family = binomial,
+            data = _)
+fit3_factor |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+ests2 <- fit2_factor |>
+  tidy() |>
+  pull(estimate)
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  replace_na(list(handcircumference = ests2[5]/ests2[2])) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+hand_train_3
+
+```{r}
+ests3 <- fit3_factor |>
+  tidy() |>
+  pull(estimate)
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  replace_na(list(handcircumference = ests3[5]/ests3[2])) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (iv) [4 Points]
+
+Strategy: impute median
+
+Tables:
+
+hand_train_2
+
+```{r}
+fit2_median <-  logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_median(handcircumference)) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_median |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_median <-  logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_median(handcircumference)) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_median |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_median(handcircumference)) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_median(handcircumference)) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (v) [4 Points]
+
+Strategy: impute mean, grouped by Sex
+
+Tables:
+
+hand_train_2
+
+```{r}
+fit2_mean2_data <-  logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_mean(handcircumference),
+         .by = sex) 
+fit2_mean2 <- fit2_mean2_data |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_mean2 |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_mean3_data <-  logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = naniar::impute_mean(handcircumference),
+         .by = sex) 
+fit3_mean3 <- fit3_mean3_data |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_mean3 |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+fit2_mean2_data |> 
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+fit3_mean3_data |> 
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (vi) [4 Points]
+
+Strategy: impute handcircumference based on a linear model. The linear model should relate handcircumference to handlength and sex (but not handbreadth).
+
+Tables:
+
+hand_train_2
+
+```{r}
+library(simputation)
+fit2_lm <- logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  impute_lm(handcircumference ~ handlength + sex) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_lm |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_lm <- logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  impute_lm(handcircumference ~  handlength + sex) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_lm |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  impute_lm(handcircumference ~  handlength + sex)|>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point()+
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  impute_lm(handcircumference ~ handlength + sex)|>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (vii) [4 Points]
+
+Method: impute handcircumference based on a random forest model relating it to handlength, handbreadth, and sex.
+
+Tables:
+
+hand_train_2
+
+```{r}
+fit2_rf <- logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  impute_rf(handcircumference ~ handbreadth + handlength + sex) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_rf |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_rf <- logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  impute_rf(handcircumference ~ handbreadth + handlength + sex) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_rf |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  impute_rf(handcircumference ~ handbreadth + handlength + sex) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  impute_rf(handcircumference ~ handbreadth + handlength + sex) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+### Component (viii) [4 Points]
+
+Method: k-nearest neighbors with k = 3. Use only handlength and handbreadth in distance variables (no sex)
+
+Tables:
+
+hand_train_2
+
+```{r}
+library(VIM)
+fit2_knn <- logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  kNN(variable = c("handcircumference"),
+      dist_var = c("handlength", "handbreadth"),
+      k = 3) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_knn |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_knn <- logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  kNN(variable = c("handcircumference"),
+      dist_var = c("handlength", "handbreadth"),
+      k=3) |>
+  glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_knn |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  kNN(variable = c("handcircumference"),
+      dist_var = c("handlength", "handbreadth"),
+      k = 3) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  kNN(variable = c("handcircumference"),
+      dist_var = c("handlength", "handbreadth"),
+      k = 3) |>
+  ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+
+### Component (ix) [5 Points]
+
+Method: The EM algorithm as implemented in missMethods.
+
+Tables:
+
+hand_train_2
+
+```{r}
+library(missMethods)
+fit2_EM <- logistic_train_2 |> 
+  impute_EM() |>
+   glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit2_EM |>
+  tidy()
+```
+
+hand_train_3
+
+```{r}
+fit3_EM <- logistic_train_3 |> 
+  impute_EM() |>
+   glm(sex ~ handcircumference + handlength + handbreadth,
+            family = binomial,
+            data = _)
+fit3_EM |>
+  tidy()
+```
+
+Scatterplots:
+
+hand_train_2
+
+```{r}
+logistic_train_EM2 <- logistic_train_2 |>
+  impute_EM()
+
+logistic_train_2 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = logistic_train_EM2$handcircumference) |>
+    ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+hand_train_3
+
+```{r}
+logistic_train_EM3 <- logistic_train_3 |>
+  impute_EM()
+
+logistic_train_3 |>
+  nabular(only_miss = TRUE) |>
+  mutate(handcircumference = logistic_train_EM3$handcircumference) |>
+    ggplot(aes(x = handcircumference,
+             y = handlength,
+             color = as.factor(sex),
+             shape = handcircumference_NA)) +
+  geom_point() +
+  xlim(150,230) + 
+  ylim(150,250)
+```
+
+
+## Part C [25 Points Together]
+
+We will now assess the performance of the fitted models from B based on different missing data strategies. 
+
+### Component (i) [10 Points]
+
+Use geom_col() to plot the estimated coefficient for handcircumference for each of the nine strategies in Part B, as well as each of the models. 
+
+Though your results may not be identical because of the random seeds, your plots should resemble the following. Order the factors in each plot by the size of the coefficients. For more information on how to do this, see Chapter 16 of WCG.
+
+```{r}
+fits2 <- tibble(
+  Model = c("drop", "select", "factor", "mean", "median", "knn", "lm", "rf", "EM"),
+  Coefficient =c(
+  fit2_drop$coefficients[2], 
+  0, 
+  fit2_factor$coefficients[2], 
+  fit2_mean2$coefficients[2],
+  fit2_median$coefficients[2],
+  fit2_knn$coefficients[2],
+  fit2_lm$coefficients[2],
+  fit2_rf$coefficients[2],
+  fit2_EM$coefficients[2] ))
+
+fits3 <- tibble(
+  Model = c("drop", "select", "factor", "mean", "median", "knn", "lm", "rf", "EM"),
+  Coefficient =c(
+  fit3_drop$coefficients[2], 
+  0, 
+  fit3_factor$coefficients[2], 
+  fit3_mean3$coefficients[2],
+  fit3_median$coefficients[2],
+  fit3_knn$coefficients[2],
+  fit3_lm$coefficients[2],
+  fit3_rf$coefficients[2],
+  fit3_EM$coefficients[2] ))
+```
+
+```{r}
+ggplot(fits2, aes(x = reorder(Model, Coefficient), y = Coefficient)) +
+  geom_bar(stat = "identity") +  # Use geom_bar() for horizontal bars
+  coord_flip() +  # Flip the coordinates to make it horizontal
+  labs(title = "Coefficient Estimates for training_2",
+       y = "Coefficient for Circumference", x = "Missing Data Strategy")
+```
+
+```{r}
+ggplot(fits3, aes(x = reorder(Model, Coefficient), y = Coefficient)) +
+  geom_bar(stat = "identity") +  # Use geom_bar() for horizontal bars
+  coord_flip() +  # Flip the coordinates to make it horizontal
+  labs(title = "Coefficient Estimates for training_3",
+       y = "Coefficient for Circumference", x = "Missing Data Strategy")
+```
+
+
+Which methods give smaller coefficients? Which ones give larger coefficients? Any thoughts on why this might be?
+
+Variable deletion yields the lowest coefficient because handcircumference isn't even part of the model. Dropping the missing values yields a higher coefficient because in the regression, values where handcircumference is NA would cause the model to not fit properly to that variable. Mean yields a higher coeffiecient than median because the mean of some data is usually greater than its median, so filling in those values yields such results accordingly. 
+
+
+### Component (ii) [10 Points]
+
+Now, to assess performance, we will use each model for prediction on our test data (hand_test.Rda)
+
+Our metric for performance will be the number of incorrect classifications compared to the truth, using a classification threshold of 0.5 for the estimated probabilities. The metric is given as a function below.
+
+```{r}
+number_of_incorrect_predictions <- function(predicted, # predicted value based on coefficients from model fit
+                                          truth # true value from test data 
+                                          ){
+  sum(abs(round(predicted) - round(truth)))
+}
+```
+
+```{r}
+load("hand_test.Rda")
+logistic_test <- hand_test |>
+  mutate(sex = if_else(sex == "Male", 1, 0)) |>
+  nabular()
+```
+
+```{r}
+fits2test <- list(fit2_drop = fit2_drop, 
+             fit2_select = fit2_select, 
+             fit2_factor = fit2_factor, 
+             fit2_mean2 = fit2_mean2,
+             fit2_median = fit2_median,
+             fit2_knn = fit2_knn,
+             fit2_lm = fit2_lm,
+             fit2_rf = fit2_rf,
+             fit2_EM = fit2_EM)
+fits3test <- list(fit3_drop = fit3_drop, 
+             fit3_select = fit3_select, 
+             fit3_factor = fit3_factor, 
+             fit3_mean3 = fit3_mean3,
+             fit3_median = fit3_median,
+             fit3_knn = fit3_knn,
+             fit3_lm = fit3_lm,
+             fit3_rf = fit3_rf,
+             fit3_EM = fit3_EM)
+```
+
+Calculate this metric for the model fit for each missing data strategy, and approximately recreate the following plot showing each strategy's performance.
+
+```{r}
+predictions2 <- fits2test |>
+  map(predict.glm,
+      newdata = logistic_test,
+      type = "response")
+results2 <- predictions2 |>
+  map(number_of_incorrect_predictions,
+      truth = logistic_test$sex)
+ordered2 <- names(results2)[order(unlist(results2), decreasing = TRUE)]
+results2[ordered2] |>
+  glimpse()
+```
+
+
+```{r}
+predictions3 <- fits3test |>
+  map(predict.glm,
+      newdata = logistic_test,
+      type = "response")
+results3 <- predictions3 |>
+  map(number_of_incorrect_predictions,
+      truth = logistic_test$sex)
+ordered3 <- names(results3)[order(unlist(results3))]
+results3[ordered3] |>
+  glimpse()
+```
+
+Which methods worked best for dataset 2? Which worked best for dataset 3?
+
+```{r}
+print("For dataset 2:")
+ordered2 <- names(results2)[order(unlist(results2))]
+results2[ordered2] |>
+  head(3)|>
+  names() |>
+  glimpse()
+print("For dataset 3:")
+ordered3 <- names(results3)[order(unlist(results3))]
+results3[ordered3] |>
+  head(3)|>
+  names() |>
+  glimpse()
+```
+
+Which methods worked worst for dataset 2? Which worked worst for dataset 3?
+
+```{r}
+print("For dataset 2:")
+d_ordered2 <- names(results2)[order(unlist(results2), decreasing = TRUE)]
+results2[d_ordered2] |>
+  head(3)|>
+  names() |>
+  glimpse()
+print("For dataset 3:")
+d_ordered3 <- names(results3)[order(unlist(results3), decreasing = TRUE)]
+results3[d_ordered3] |>
+  head(3)|>
+  names() |>
+  glimpse()
+```
+
+Was there any method that worked poorly for training 2 but seemed to work well for training 3? Why do you think this was the case?
+
+The variable removal worked poorly for training 2 but well for training 3. I think this is because dataset 3 had more missing values or the variable we deleted (handcircumference).
+
+### Component (iii) [5 Points]
+
+Construct a visualization of the relationship between the estimated coefficient for circumference and the prediction accuracy across the strategies for both the datasets. Make sure to use aesthetics to distinguish between different strategies any datasets.
+
+Do you see any interesting relationships? Comment on them.
+
+```{r}
+fits2 <- fits2 |>
+  mutate(incorrect_predictions = c(results2$fit2_drop,
+                                   results2$fit2_select,
+                                   results2$fit2_factor,
+                                   results2$fit2_mean2,
+                                   results2$fit2_median,
+                                   results2$fit2_knn,
+                                   results2$fit2_lm,
+                                   results2$fit2_rf,
+                                   results2$fit2_EM))
+```
+
+```{r}
+fits3 <- fits3 |>
+  mutate(incorrect_predictions = c(results3$fit3_drop,
+                                   results3$fit3_select,
+                                   results3$fit3_factor,
+                                   results3$fit3_mean3,
+                                   results3$fit3_median,
+                                   results3$fit3_knn,
+                                   results3$fit3_lm,
+                                   results3$fit3_rf,
+                                   results3$fit3_EM))
+```
+
+```{r}
+ggplot(fits2, aes(x = Coefficient, y = incorrect_predictions, color = Model)) +
+  geom_point(size = 3) +
+  labs(x = "Estimated Coefficient for Circumference",
+       y = "Number of Incorrect Predictions",
+       title = "Relationship between Circumference Coefficient and Prediction Accuracy for Data 2") 
+```
+
+```{r}
+ggplot(fits3, aes(x = Coefficient, y = incorrect_predictions, color = Model)) +
+  geom_point(size = 3) +
+  labs(x = "Estimated Coefficient for Circumference",
+       y = "Number of Incorrect Predictions",
+       title = "Relationship between Circumference Coefficient and Prediction Accuracy for Data 2") 
+```
+
+For Data 2, it seems that the lower the coefficient, the more number of incorrect predictions there were. For Data 3, however, there is a weak relationship between the coefficient and the number of incorrect predictions grows with the coefficient.
+
+
+# Question 2 [15 Points Total]
+
+## Part A [5 Points]
+
+Revisit the jagr_df_week2.Rda dataset we explored in week 2. Visualize and describe its missingness pattern.
+
+```{r}
+load("jagr_df_week2.Rda")
+jagr_df |>
+  vis_dat()
+```
+
+```{r}
+jagr_df |>
+  vis_miss()
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+The first 500 entries of SHFT and TOI are missing. This data is missing not at random because there is an observable block that can be identified that's missing. There is a discernible pattern where data is missing.
+
+
+## Part B [5 Points]
+
+Revisit the dat_pit_climate.Rda dataset we explored in week 2. Visualize and describe its missingness pattern.
+
+```{r}
+load("dat_pit_climate.Rda")
+dat_pit_climate |>
+  vis_dat()
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+This data is missing at random (not completely at random) because there is a subset where the data is missing that is easily discernible. It is a block of the first 700 entries. However, within that block, the missing data isn't predictable and doesn't really follow a pattern. Hence, the data is missing at random.
+
+## Part C [5 Points]
+
+Recall the palmerpenguins data from week 1, which can be loaded using the following code.
+
+```{r}
+library(palmerpenguins)
+penguins |>
+  glimpse()
+```
+
+Visualize and describe its missingness pattern. 
+
+```{r}
+penguins |>
+  vis_dat()
+```
+
+Would you describe this data as missing at random, missing completely at random, or missing not at random? Justify your choice.
+
+```{r}
+penguins |>
+  mcar_test()
+```
+
+Due to the large p-value, we can't reject the null hypothesis that the data is MCAR. 

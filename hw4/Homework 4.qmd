@@ -1,0 +1,584 @@
+---
+title: "Homework 4"
+author: "Ridhi Bandaru"
+format: 
+  html:
+    embed-resources: true
+---
+
+# Problem 1 [30 Points Total]
+
+### Question (i). 7 points.
+
+The ANSUR II MALE Public.csv and ANSUR II FEMALE Public.csv files are available on HuskyCT. Read these files into R, then combine them into a single a data frame containing one row for each individual.
+
+From this data frame, create a new data frame called "measurements" comprised of the following columns in the following order:
+
+- subjectid
+- sex
+- Age
+- forearmcenterofgriplength
+- forearmcircumferenceflexed
+- forearmhandlength
+- handbreadth
+- handcircumference
+- handlength
+- palmlength
+- thumbtipreach
+- wristcircumference
+- anklecircumference
+- balloffootcircumference
+- balloffootlength
+- calfcircumference
+- footbreadthhorizontal
+- footlength
+- heelanklecircumference
+- heelbreadth
+- kneeheightmidpatella
+- kneeheightsitting
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+library(broom)
+
+female <- read_csv("ANSUR II FEMALE Public.csv") |>
+  rename(subjectid = SubjectId) |>
+  mutate(sex = "female")
+male <- read_csv("ANSUR II MALE Public.csv") |>
+  mutate(sex = "male")
+combined <- rbind(male, female) 
+measurements <- combined |>
+  select(subjectid, sex, Age, forearmcenterofgriplength, forearmcircumferenceflexed,
+         forearmhandlength, handbreadth, handcircumference, handlength, palmlength,
+         thumbtipreach, wristcircumference, anklecircumference, balloffootcircumference,
+         balloffootlength, calfcircumference, footbreadthhorizontal, footlength,
+         heelanklecircumference, heelbreadth, kneeheightmidpatella, kneeheightsitting) |>
+  glimpse()
+  
+```
+
+### Question (ii). 8 points.
+
+Run principal component analysis (the scaled version) on the measurements data obtained in (i), excluding the variables sex, Age, and subjectid.
+
+Make a graphic depicting the percentage of the variance explained by each of the principal components. 
+
+```{r}
+theme_set(theme_bw())
+
+pca <- measurements |>
+  select(-c(sex,Age,subjectid)) |>
+  scale() |>
+  prcomp() 
+
+variances <- pca |>
+  tidy(matrix = "pcs")
+
+variances |>
+  ggplot(aes(x = factor(PC),
+             y = percent)) + 
+  geom_col()
+```
+
+What percentage of the variance is explained by the first four components together? 
+
+```{r}
+variances |>
+  head(4)
+```
+
+88.145% of the variance is explained by the first four components together.
+
+### Question (iii). 7 points.
+
+Visualize the factor loadings for the first four principal components. Can they be interpreted? Try your best to interpret all four. Don't worry if your interpretations are slightly vague.
+
+```{r}
+loadings <- pca |>
+  tidy(matrix = "loadings")
+loadings |>
+  filter(PC <=4) |>
+  ggplot(aes(y = column,
+             x = value)) +
+  geom_col(aes(y = column)
+           ) + 
+  facet_wrap(~PC)
+```
+The first component reflects size as a whole.
+The second component seems to differentiate length versus circumference/breadth.
+The third component seems to differentiate forelimbs (forearms, hands and wrists) from the hindlimbs (feet, balls of feet, ankles, and knees).
+The fourth component appears to differentiate between heel/ankle/hand from knee/calf/forearm.
+
+
+### Question (iv). 8 points.
+
+Of the first four components, do any appear to share a relationship with the sex of the subjects? Do any share a relationship with Age? Please provide visualizations to explain how you reached these conclusions. You do not need to perform formal statistical tests.
+
+```{r}
+scores <- pca |> 
+  tidy(pmatrix = "scores") |>
+  filter(PC <= 4)
+
+scores_wider <- scores |>
+  pivot_wider(names_from  = PC,
+              names_prefix = "PC")
+
+scores_wider <- combined |>
+  bind_cols(scores_wider) |>
+  select(-row) |>
+  glimpse()
+
+scores_wider |> 
+  dplyr::select(c(sex, starts_with("PC"))) |>
+  pivot_longer(starts_with("PC"),
+               names_to = "PC") |>
+  ggplot(aes(x = value,
+             color = sex)) +
+  geom_density() +
+  facet_wrap(~PC, 
+             scales = "free")
+
+scores_wider |> 
+  dplyr::select(c(Age, starts_with("PC"))) |>
+  pivot_longer(starts_with("PC"),
+               names_to = "PC") |>
+  ggplot(aes(x = value,
+             y = Age)) +
+  geom_line() +
+  facet_wrap(~PC, 
+             scales = "free")
+```
+
+It seems like PC1 and PC3 have some association with the sex. PC2 and PC4 seem indifferent to the sex of the subject. When it comes to the age, however, neither of the four PCs seem to be capturing the variability.
+
+
+# Problem 2 [25 Points]
+
+Recall the handwritten digit images we read into R for Homework 3. These digits were taken from the MNIST dataset. In this question, we will also work with data from the MNIST database.
+
+I constructed the file one_image_data.csv using 4684 images of handwritten numbers. Each row corresponds to a handwritten number one. The column observation_id assigns a unique identifying number to each image. The remaining columns, with names of form x.._y.. describe the pixel value of the image at the spatial coordinate given the values trailing x and y.
+
+For example, Question (i) depicts the image corresponding to the first row in the csv.
+ 
+### Question (i). 10 points.
+
+Read the dataset into R using read_csv(). Then, manipulate the data using tidyverse verbs and use ggplot with geom_raster() to recreate the image below corresponding to the first row of the csv.
+
+```{r}
+one_image_data <- read_csv("one_image_data.csv")
+
+first_img_id <- one_image_data$observation_id[1]
+
+one_image_data_tidy <- one_image_data |>
+  pivot_longer(cols = starts_with("x"),  
+               names_to = "coordinate", 
+               values_to = "value") |>
+  separate(coordinate, 
+           into = c("x", "y"),  
+           sep = "_") |>
+  mutate(x = as.numeric(gsub("x","",x)),
+         y = as.numeric(gsub("y","",y))) |>
+  glimpse()
+
+      
+```
+
+
+
+```{r}
+
+first_img <- one_image_data_tidy |>
+  filter(observation_id == first_img_id)
+
+first_img
+
+```
+
+```{r}
+ggplot(first_img, aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1)
+```
+
+### Question (ii). 5 points.
+
+Next, filter such that pixels with intensity less than 0.5 are removed, then point the image as a point cloud using geom_point(). The result should resemble the following.
+
+```{r}
+
+first_points <- first_img |>
+  filter(value >= 0.5)
+
+ggplot(first_points, aes(x = as.numeric(x), y = as.numeric(y))) +
+  geom_point() +
+  xlim(1,28) +
+  ylim(1,28) +
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1)
+
+
+```
+
+### Question (ii). 10 points.
+
+Next, use Principal Component Analysis to align the image such that the handwritten digit runs approximately parallel to the vertical axis. The result should resemble the following image. Remember that you may have to flip the sign on the x and or y values.
+
+```{r}
+
+pca_first <- first_points |>
+  prcomp()
+
+scores <- pca_first |>
+  tidy(matrix = "scores") |>
+  pivot_wider(names_from = PC,
+              values_from = value,
+              names_prefix = "PC")
+
+# Get the direction of the principal component that aligns best with the vertical axis
+vertical_pc <- ifelse(abs(cor(scores$PC1, scores$PC2)) > abs(cor(scores$PC1, scores$PC3)), "PC2", "PC3")
+
+scores_wider <- first_points |>
+  bind_cols(scores) |>
+  select(-row) 
+
+# Flip the sign on the appropriate principal component if needed
+if (cor(scores_wider[[vertical_pc]], first_points$y) < 0) {
+  first_points[[vertical_pc]] <- -first_points[[vertical_pc]]
+}
+
+# Plot the image using geom_raster with the rotated coordinates
+ggplot(scores_wider, aes(x = -PC2, y = -PC1)) +
+  geom_point() +
+  xlim(-25,25) +
+  ylim(-25,25) +
+  theme(aspect.ratio = 1)
+```
+
+
+# Problem 3 [45 Points]
+
+This problem will use the same data as Problem 2. However, rather than focusing on just first image, we shall analyze the entire dataset to understand the structure of variability in handwritten ones. 
+
+### Question (i). 5 Points.
+
+Using the original data you originally read in, compute principal component analysis on all the the pixel columns: x1_y28 through x28_y1.
+
+```{r}
+
+full_pca <- one_image_data |> 
+  select(-observation_id) |>
+  prcomp()
+
+scores <- full_pca |>
+  tidy(matrix = "scores") |>
+  pivot_wider(names_from = PC,
+              values_from = value,
+              names_prefix = "PC")
+
+```
+
+### Question (ii). 5 Points.
+
+What percentage of the variance is described by each of the first 6 principal components? Report your answer as a table.
+
+```{r}
+
+variances <- full_pca |>
+  tidy(matrix = "pcs")
+
+variances |>
+  select(PC, percent) |>
+  head(6)
+```
+
+### Question (iii). 5 Points.
+
+What percentage of the variance is explained by principal components 100 through 784? Report your answer as a number.
+
+```{r}
+
+variances$cumulative[784] - variances$cumulative[99]
+
+```
+3.144% of the variance is explained by principal components 100 through 784.
+
+### Question (iv). 15 Points.
+
+Visualize the loadings for the top six principal components by arranging them into a faceted image as follows. Doing so will require data manipulation and geom_pixel().
+
+```{r}
+loadings <- full_pca |>
+  tidy(matrix = "loadings") |>
+  separate(col = column, into = c("x", "y"), sep = "_") |>
+  mutate(x = as.numeric(gsub("x","",x)),
+         y = as.numeric(gsub("y","",y))) |>
+  filter(PC <= 6)
+```
+
+
+```{r}
+ggplot(loadings, aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient2(low = "brown",
+                       mid = "white",
+                       high = "darkslateblue",
+                       midpoint = 0) +
+  facet_wrap(~ PC, ncol = 3,
+             labeller = labeller(PC = function(x) paste0("PC",x))) +  
+  labs(x = "x",
+       y = "y",
+       fill = "loading value") 
+```
+
+These are the directions along which ones tend to vary. Can you interpret PC1? 
+
+PC1 seems to differentiate which way the ones are tilted. It has a low value for the ones that go left to right, top to bottom, and high values for those that go right to left, top to bottom.
+
+### Question (v). 12 Points.
+
+To further understand how digits differ along these principal components, let's visualize the four images with the highest and lowest scores corresponding to each of PC1, PC2, PC3, and PC4.
+
+Your solution should resemble the following for PC1.
+
+Highest four for PC1:
+
+```{r}
+scores <- scores |>
+  select(row, PC1, PC2, PC3, PC4)
+
+pc1_high <- scores |>
+  arrange(desc(PC1)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc1_high
+```
+
+```{r}
+
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 590 |
+           observation_id == 1069 |
+           observation_id == 43 |
+           observation_id == 2867) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+
+Lowest four for PC1:
+
+```{r}
+pc1_low <- scores |>
+  arrange((PC1)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc1_low
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 2290 |
+           observation_id == 472 |
+           observation_id == 4040 |
+           observation_id == 1515) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+Similarly, complete PC2, PC3, and PC4.
+
+Highest four for PC2 :
+
+```{r}
+pc2_high <- scores |>
+  arrange(desc(PC2)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc2_high
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 14 |
+           observation_id == 1037 |
+           observation_id == 2069 |
+           observation_id == 2506) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+Lowest four for PC2:
+
+```{r}
+pc2_low <- scores |>
+  arrange((PC2)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc2_low
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 3317 |
+           observation_id == 886 |
+           observation_id == 2360 |
+           observation_id == 3055) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+
+Highest four for PC3:
+
+```{r}
+pc3_high <- scores |>
+  arrange(desc(PC3)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc3_high
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 147 |
+           observation_id == 226 |
+           observation_id == 3705 |
+           observation_id == 489) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+
+Lowest four for PC3:
+
+```{r}
+pc3_low <- scores |>
+  arrange((PC3)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc3_low
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 4575 |
+           observation_id == 3807 |
+           observation_id == 4395 |
+           observation_id == 418) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+Highest four for PC4:
+
+```{r}
+pc4_high <- scores |>
+  arrange(desc(PC4)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc4_high
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 678 |
+           observation_id == 1037 |
+           observation_id == 14 |
+           observation_id == 1680) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+Lowest four for PC4:
+
+```{r}
+pc4_low <- scores |>
+  arrange((PC4)) |>
+  head(4) |>
+  select(row) |>
+  as.vector()
+pc4_low
+```
+
+```{r}
+one_image_data_tidy |> 
+  filter(observation_id == 1118 |
+           observation_id == 3187 |
+           observation_id == 1101 |
+           observation_id == 1312) |>
+  ggplot(aes(x = as.numeric(x), y = as.numeric(y), fill = value)) +
+  geom_raster() +
+  scale_fill_gradient(low = "white", high = "black") +  
+  labs(x = "x",
+       y = "y") +
+  theme(aspect.ratio = 1) +
+  facet_wrap(~ observation_id)
+```
+
+
+Which of the four largest principal components do you find the easiest to interpret? Why?
+
+I find PC3 the easiest to interpret because it basically just covers the variability in the thickness of the one. It's low if it's fat and high if it's thin. 
+
+
+### Question (vi). 3 Points.
+
+If we were to rotate all the images using the technique used in problem 2, would we still expect the leading principal components to stay the same? Which of the top four might stay, and which might go?
+
+No coding is required for answering this question. I just want you to speculate and provide justification.
+
+If you rotate all the images using the same technique, you would still expect the leading principal components to capture these dominant patterns or features, and their directions in the rotated images would likely remain similar. However, the specific ranking of the principal components might change slightly due to the rotation. Components that capture important structural information or common patterns across all images are likely to stay among the top components. On the other hand, components that capture noise or less relevant variations might be affected more by the rotation and may not remain among the top components. Therefore, it's possible that some of the top four principal components may stay relatively unchanged, while others might shift in their rankings or even be replaced by new components that capture different variations in the rotated images.
+
+

@@ -1,0 +1,368 @@
+---
+title: "Homework 5"
+author: "Ridhi Bandaru"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+This homework will involve data from transcripts of the American television show "The Office" which aired on NBC from 2005 to 2013. All transcripts are available in the R package schrute, which is available on CRAN.
+
+```{r}
+library(schrute)
+library(tidyverse)
+data(theoffice)
+glimpse(theoffice)
+```
+
+Note that each row in the data frame corresponds to a line spoken by a character in the show. 
+
+# Problem 1 [60 Points Total]
+
+## Part A [10 Points]
+
+The column named text in theoffice contains the words spoken by a character in a line of dialog. Recreate the following figure showing the total number of words spoken in each episode of each season.
+
+```{r}
+
+library(ggplot2)
+theme_set(theme_bw())
+
+theoffice_words <- theoffice |>
+  group_by(season, episode) |>
+  summarise(total_words = sum(str_count(text, "\\S+"))) 
+
+ggplot(theoffice_words, aes(x = episode, y = total_words)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ season, ncol = 3) +
+  labs(x = "Episode Number", y = "Number of Words") +
+  ylim(0,6200)
+
+```
+
+Based on the number of words, list out the episodes do you think might be "double episodes" (42 minute instead of 21 long)? 
+
+```{r}
+
+# Filter out episodes with more than 1.5 times the average
+theoffice_words |>
+  filter(total_words > 4500)
+
+```
+
+Verify your claims by showing that none of these episodes have an episode number right after them. (Example, there is no Season 4 Episode 2, confirming Season 4 Episode 1 is a double episode)
+
+```{r}
+
+theoffice_words |>
+  group_by(season) |>
+  mutate(next_episode = lead(episode)) |>
+  mutate(type = if_else(next_episode - episode == 2, "double episode",
+                if_else(next_episode - episode == 1, "regular episode","last episode"))) |>
+  filter(total_words > 4500)
+
+```
+
+Finally, guess which episode (hint: in Season 6) was a clip show. Feel free to verify using wikipedia 
+
+```{r}
+theoffice_words |>
+  filter(total_words < 1500)
+```
+
+Wikipedia: ""The Banker", although shown in smaller portions, is the only clip show of the series."
+I am right.
+source: https://en.wikipedia.org/wiki/The_Banker_(The_Office)
+
+## Part B [8 Points]
+
+Create a word cloud of the 50 most-used words across the entire series, excluding stop words.
+
+```{r}
+
+library(tidytext)
+library(ggwordcloud)
+
+top50words <- theoffice |>
+  unnest_tokens(word, 
+                text) |>
+  anti_join(stop_words,
+            by = join_by(word)) |>
+  summarize(term_frequency = n(),
+            .by = c(word)) |>
+  arrange(desc(term_frequency))
+
+top50words |> 
+  slice_max(term_frequency, n = 50) |>
+  ggplot() +
+  geom_text_wordcloud(aes(label = word, 
+                          size = term_frequency)) +
+  scale_size_area(max_size = 15) 
+  
+```
+
+What word was used the most?
+
+```{r}
+top50words |>
+  head(1)
+```
+
+## Part C [4 Points]
+
+Recreate the following word cloud of names of the 30 characters from the office who spoke the most words throughout the series. The size of the name should be proportional to how many words [including stop words] that the character spoke.
+
+```{r}
+
+top30chars <- theoffice |>
+  group_by(character) |>
+  summarise(total_words = sum(str_count(text, "\\w+"))) |>
+  arrange(desc(total_words))
+
+top30chars |>
+  slice_max(total_words, n = 30) |>
+  ggplot() +
+  geom_text_wordcloud(aes(label = character, 
+                          size = total_words)) +
+  scale_size_area(max_size = 25) 
+
+
+```
+
+## Part D [8 Points]
+
+Consider the names of the 30 characters chosen for Part C. Recreate the following bar chart. It shows how many times that each character's name appeared as spoken dialog throughout the show's run.
+
+```{r}
+chars <- top30chars$character |>
+  head(30) |>
+  tolower()
+char_counts <- theoffice |>
+  unnest_tokens(word, 
+                text) |>
+  filter(word %in% chars) |>
+  count(word) |>
+  arrange(desc(n))
+ 
+char_counts |>
+  ggplot(aes(x = n, y = reorder(word, n))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Mentions in Show",
+       y = "Character Name")
+```
+
+## Part E [10 Points]
+
+Let's see if there are other common first names that are spoken throughout the show.
+
+To do this, determine the 1500 most popular names in the babynames dataset [package babynames], remove any names that are also stop words (like Will and May), then count how times each of these names are spoken in the office.
+
+Once you've done that, use the results to recreate the following plot. Each bar is colored based on whether or not the names appeared in Part D.
+
+```{r}
+library(babynames)
+
+popular_names <- babynames |>
+  group_by(name) |>
+  summarize(counts = sum(n)) |>
+  arrange(desc(counts)) |>
+  head(1500)
+
+popular_names <- popular_names$name |>
+  tolower() 
+popular_names <- popular_names[!popular_names %in% stop_words$word]
+
+```
+
+
+
+```{r}
+
+office_names <- theoffice |>
+  unnest_tokens(word, 
+                text) |>
+  filter(word %in% popular_names) |>
+  count(word) |>
+  arrange(desc(n)) |>
+  mutate(thereornot = word %in% chars) |>
+  head(40)
+
+office_names |>
+  ggplot(aes(x = n, y = reorder(word, n), fill = thereornot)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Mentions in Show",
+       y = "Character Name") +
+  theme(legend.position = "none")
+```
+
+Which character names shown in part D are missing from our list of common baby names?
+
+```{r}
+chars[! chars %in% popular_names]
+```
+
+## Part F [6 Points]
+
+In the office script, the writers often like to spell a character screaming or laughing using words that are at least two letters long and composed entirely of h's and a's. Approximately recreate the following word cloud demonstrating all of these words, with size proportional often they are used.
+
+```{r}
+library(stringr)
+ahs <- theoffice |>
+  unnest_tokens(word, 
+                text) |>
+  filter(nchar(word) >= 2 & !grepl("[^ah]", word))|>
+  count(word) |>
+  arrange(desc(n))
+```
+
+
+```{r}
+ahs |>
+  ggplot() +
+  geom_text_wordcloud(aes(label = word, 
+                          size = n)) +
+  scale_size_area(max_size = 35)
+```
+
+## Part G [8 points]
+
+Sometimes, the writers like to indicate yelling by showing the same vowel repeated four or more times in a row (e.g. aaaa, iiii, oooo) in a word. For example, "staaaarrrrted".
+
+Recreate the following plot depicting how times this occurs in episodes written by each writer.
+
+```{r}
+yelling <- theoffice |>
+  unnest_tokens(word, 
+                text) |>
+  filter(grepl("(a{4,}|e{4,}|i{4,}|o{4,}|u{4,})", word, ignore.case = TRUE)) |>
+  separate_rows(writer, sep = ";") |>
+  count(writer) |>
+  arrange(desc(n))
+  
+yelling |>
+  ggplot(aes(x = n, y = reorder(writer, n))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Number of tiiiimes",
+       y = "Writer")
+```
+
+## Part H [6 points]
+
+Treating each season as a document, calculate the tf_idf scores for the words. Which word has the highest tf_idf score for each season?
+
+```{r}
+tfidf <- theoffice |>
+  unnest_tokens(word, text) |>
+  count(word, season) |>
+  ungroup() |>
+  bind_tf_idf(word, season, n) |>
+  select(season, word, tf_idf)
+
+top_words <- tfidf |>
+  group_by(season) |>
+  slice_max(order_by = tf_idf, n = 1)
+
+top_words
+```
+
+
+# Problem 2 [40 Points Total]
+
+## Part A [8 Points]
+
+Create a document term matrix corresponding to the number of times each character speaks in each episode. Each character name (e.g. Michael, Dwight, Pam) should correspond to a "term". Each episode corresponds to a "document". 
+
+```{r}
+library(tm)
+
+empty_rows <- theoffice |>
+  filter(text == "") |>
+  mutate(word = NA_character_)
+office_tokens <- theoffice |>
+  unnest_tokens(word, text, drop = FALSE) |>
+  bind_rows(empty_rows)
+dtm <- office_tokens |>
+  count(season, episode_name, character)  |>
+  cast_dtm(document = episode_name, 
+           term = character,
+           value = n)
+
+dtm
+```
+
+Hint: Your matrix should consist of 186 documents and 773 terms.
+
+## Part B [8 Points]
+
+Use latent Dirichlet allocation to fit a topic model with four topics to this data.
+
+```{r}
+library(topicmodels)
+lda <- LDA(dtm, k = 4)
+lda
+```
+
+## Part C [12 Points]
+
+Create a graphic showing the beta scores for the top 10 characters for each topic. 
+
+```{r}
+lda_topics <- lda |>
+  tidy(matrix = "beta")
+
+top_terms <- lda_topics |>
+  group_by(topic) |>
+  slice_max(beta, 
+            n = 10) |> 
+  mutate(topic = factor(topic))
+
+top_terms |>
+  ggplot(aes(beta,
+             term, 
+             fill = topic)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, 
+             scales = "free_y", 
+             ncol = 4) 
+```
+
+Is there a character whose prevalence seems to shift the most between topics?
+
+- Michael isn't even there in topics 3 and 4 while being extremely prevalent in topics 1 and 2.
+- Andy's prevalance keeps fluctuating between topics.
+
+
+## Part D [12 Points]
+
+Create a graphic showing the distribution of topics for each episode across seasons. 
+
+```{r}
+distributions <- lda |>
+  tidy(matrix = "gamma") |>
+  rename(episode_name = document) |>
+  left_join(theoffice |>
+              select(episode_name, season, episode) |>
+              distinct(episode_name, .keep_all = TRUE),
+            by = "episode_name") 
+
+  distributions |>
+    ggplot() +
+    geom_col(aes(x = episode,
+                y = gamma,
+                fill = as.factor(topic)),
+           position = "fill", 
+           color= "black", 
+           linewidth = 0.1) +
+    facet_wrap(~season, 
+             scales = "free_x") +
+    theme(legend.position = "top",
+          strip.background = element_blank(),
+          strip.text.x = element_blank()) +
+    labs(y = "Topic Percentage Share")
+```
+
+Does the topic distributions seem to shift as the series progresses? How so? What do you think is driving this change?
+
+Yes, the topic distributions definitely seem to shift as the series progresses. The first two seasons only have topics 1 and 2. Topics 3 and 4 and kind of introduced in season 3 but don't really occur much. They start gaining more prominence in seasons 6 and 7. By season 8 and 9, these two have almost completely taken over and replaced topics 1 and 2 entirely. I think the changes in the occurrences of characters and how many dialogues they have shifted over time, and that is driving this change.

@@ -1,0 +1,381 @@
+---
+title: "Homework 2 Template"
+format: 
+  html:
+    embed-resources: true
+---
+# Problem 1
+
+For our first problem, we will use data obtained from past Eurovision song contests. The data can be found as contestants.Rda and votes.Rda on HuskyCT.
+
+## Part A
+
+Part A of the problem will concern the data available in contestants.Rda.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(janitor)
+```
+
+### Question (i). 8 points.
+
+Load the "contestants" data frame into R.
+
+```{r}
+load("contestants.Rda")
+contestants |>
+  glimpse()
+```
+
+Using this data frame as a starting point, apply dplyr verbs to create another data frame which meets the following criteria:
+
+-   include exactly two columns: one named performer, and another named nperformances. The cells of performer should give the names of performers. The cells in nperformances should tell us the number of times a performer appeared in the dataset.
+
+-   Do not include any performers with fewer than three Eurovision performances.
+
+-   Sort the rows such that they are in descending order based on the number of performances. For example, anyone with four performances should appear above anyone with three performances.
+
+```{r}
+performances <- contestants |>
+  select(performer) |>
+  group_by(performer) |>
+  count() |>
+  rename(nperformances = n) |>
+  filter(nperformances >= 3) |>
+  arrange(desc(nperformances))
+```
+
+```{r}
+performances
+```
+
+### Question (ii). 8 points.
+
+Using dplyr verbs, create a one-row data frame that reports the number of missing values in each column of the original contestants data frame.
+
+```{r}
+missing_counts <- contestants |>
+  summarise(across(everything(), ~sum(is.na(.))))
+```
+
+```{r}
+missing_counts
+```
+
+### Question (iii). 8 points.
+
+Occasionally, a country in contestants has had more than one performer in a given year. How many times does this occur in the contestants data frame?
+
+```{r}
+multiple_performers_count <- contestants |>
+  distinct(year, to_country, performer) |>
+  group_by(to_country, year) |>
+  count() |>
+  filter(n>1) |>
+  rename(nperformers = n,
+         country = to_country)
+  
+```
+
+```{r}
+multiple_performers_count
+```
+
+This happens 5 different times. The table above enumerates the countries that had multiple performers in a given year and which years. All these times, there were 2 different performers.
+
+### Question (iv). 8 points.
+
+To eliminate the cases discovered in (iii), create a new data frame named contestants_fixed.
+
+contestants_fixed should be identical to contestants, except it should contain at most one performer for each country-year combination. If more there is more than one performer for a country-year combination in contestants, contestants_fixed should keep only the one with the highest running_final score. 
+
+Hint: if using a slice_max verb, it may be helpful to include a with_ties = FALSE argument.
+
+```{r}
+contestants_fixed <- contestants |>
+  group_by(to_country, year) |>
+  slice_max(order_by = running_final, n = 1, with_ties = FALSE) |>
+  ungroup()
+```
+
+```{r}
+contestants_fixed
+```
+
+
+### Question (v). 8 points.
+
+Using the data frame you created in (iv), create a new data frame "contestants_fixed_wider" where:
+
+-   each row represents a year,
+-   each column is a country, and
+-   the cell values are the number of points each country got in the final (i.e. the variable named points_final). If a country didn't participate in the final, the cell value should be NA.
+
+```{r}
+contestants_fixed_wider <- contestants_fixed |>
+  select(to_country, year, points_final) |>
+  pivot_wider(
+    names_from = to_country, 
+    values_from = points_final
+  )
+```
+
+```{r}
+contestants_fixed_wider
+```
+
+
+## Part B
+
+Part B will concern the data available in votes.Rda
+
+### Question (i). 6 points.
+
+Start by loading the votes data into R. 
+
+```{r}
+load("votes.Rda")
+votes |>
+  glimpse()
+```
+
+Then, create a new data frame called votes_complete. votes_complete should contain only those rows which have non-NA observations for both the tele_points and jury_points variables.
+
+```{r}
+votes_complete <- votes |>
+  filter(!is.na(tele_points) & !is.na(jury_points))
+```
+
+How many years are represented in this new votes_complete data frame?
+
+```{r}
+unique_years <- votes_complete |>
+  distinct(year) |>
+  nrow()
+unique_years
+```
+
+There are 7 years represented in the new votes_complete data frame.
+
+### Question (ii). 8 points.
+
+Apply dplyr verbs to transform votes_complete into a new data frame named votes_complete_agg with 5 columns: year, from_country, to_country, tele_points, and jury_points.
+
+tele_points and jury_points should be the sum of these values across the three rounds: final, semi-final-1, and semi-final-2.
+
+```{r}
+votes_complete_agg <- votes_complete |>
+  group_by(year, from_country, to_country) |>
+  summarise(
+    tele_points = sum(tele_points, na.rm = TRUE),
+    jury_points = sum(jury_points, na.rm = TRUE)
+  )
+votes_complete_agg
+```
+
+Over the years, which four countries sent the most jury points to Poland?
+
+```{r}
+to_poland <- votes_complete_agg |>
+  filter(to_country == 'Poland') |>
+  group_by(from_country) |>
+  summarise(jury_points = sum(jury_points, na.rm = TRUE)) |>
+  arrange(desc(jury_points)) |>
+  select(from_country,
+         jury_points)
+head(to_poland)
+```
+
+Over the years, San Marino (27), Australia (22), Azerbaijan (21) and Isreal (21) sent the most jury points to Poland.
+
+
+### Question (iii). 10 points.
+
+Consider the countries Sweden, Denmark, and Norway.
+
+Transform votes_complete_agg into a data frame that can be used to create the following faceted plot.
+
+```{r}
+scandinavia <- votes_complete_agg |>
+  select(to_country, from_country, year, jury_points, tele_points) |>
+  filter(to_country == "Sweden" | to_country == "Denmark" | to_country == "Norway") |>
+  filter(from_country == "Sweden" | from_country == "Denmark" | from_country == "Norway")
+scandinavia
+```
+
+Note that the plot shows how the jury_points and tele_points exchanged between these countries varied from year to year. Once you have the correct data frame, recreate the plot.
+
+```{r}
+theme_set(theme_bw())
+scandinavia |>
+  ggplot(aes(x = year)) +
+  xlim(2018,2023) +
+  geom_line(aes(y = jury_points, linetype = "jury")) +
+  geom_line(aes(y = tele_points, linetype = "tele")) +
+  geom_point(aes(y = jury_points, shape = "jury")) +
+  geom_point(aes(y = tele_points, shape = "tele")) +
+  facet_grid(from_country ~ to_country) +
+  labs(x = "year",
+       y = "point_total") +
+  scale_linetype_manual(values = c("tele" = 44, "jury" = 1), 
+                        name = "point_type") +
+  scale_shape_manual(values = c("jury" = 16, "tele" = 17), 
+                     name = "point_type") +
+  theme(legend.position = "top") 
+```
+
+# Problem 2
+
+## Part A. 30 points.
+
+Attached to the homework on HuskyCT, there are four Rda files: tmax.Rda, tmin.Rda, prcp.Rda, and tmax_tmin_prcp.Rda. These files provide historical weather data for four cities: Philadelphia, PA; Pittsburgh, PA; Erie, PA; Cleveland, OH. tmax is the max daily temperature, tmin is the min daily temperature, and prcp is the daily precipitation.
+
+tmax.Rda, tmin.Rda, prcp.Rda are untidy representations of pieces of the weather data---one for tmax, one for tmin, and one for prcp. tmax_tmin_prcp.Rda is a tidy version of the three datasets brought together.
+
+Your task is to use tmax.Rda, tmin.Rda, and prcp.Rda to exactly replicate the contents of tmax_tmin_prcp.Rda. This should be accomplished through a series of tidyverse verbs.
+
+Please provide all the code to go from tmax.Rda, tmin.Rda, and prcp.Rda to a single dataframe matching tmax_tmin_prcp. 
+
+
+```{r}
+load("tmax.Rda")
+load("tmin.Rda")
+load("prcp.Rda")
+load("tmax_tmin_prcp.Rda")
+```
+
+```{r}
+
+tmax_tidy <- tmax |>
+  pivot_longer(cols = -year, 
+               names_to = "column_name", 
+               values_to = "tmax") |>
+  separate(column_name, into = c("City", "State", "Day", "Month"), sep = ",") |>
+  mutate(City = fct_recode(City, 
+                                "Pittsburgh" = "pit",
+                                "Philadelphia" = "phi",
+                                "Erie" = "eri",
+                                "Cleveland" = "cle")) |>
+  mutate(State = fct_recode(State, 
+                                "PA" = "pa",
+                                "OH" = "oh"))
+
+tmax_tidy |>
+  glimpse()
+```
+
+```{r}
+
+tmin_tidy <- tmin |>
+  pivot_longer(cols = -c(year, month), 
+               names_to = "column_name", 
+               values_to = "tmin") |>
+  separate(column_name, into = c("City", "State", "Day"), sep = "_") |>
+  mutate(City = fct_recode(City, 
+                                "Pittsburgh" = "pit",
+                                "Philadelphia" = "phi",
+                                "Erie" = "eri",
+                                "Cleveland" = "cle")) |>
+  mutate(State = fct_recode(State, 
+                                "PA" = "pa",
+                                "OH" = "oh")) |>
+  rename("Month" = month)
+
+tmin_tidy |>
+  glimpse()
+```
+
+```{r}
+
+prcp_tidy <- prcp |>
+  pivot_longer(cols = -c(year, city, state), 
+               names_to = c("day", "month"), 
+               names_pattern = "date(.*)__(.*)",
+               values_to = "prcp") |>
+  rename("City" = city,
+         "Month" = month,
+         "Day" = day,
+         "State" = state)
+
+prcp_tidy |>
+  glimpse()
+```
+
+```{r}
+tmax_tmin_prcp_tidy <- tmax_tidy |>
+  left_join(tmin_tidy) |>
+  left_join(prcp_tidy) |>
+  mutate(Day = as.integer(Day)) |>
+  select(Day, Month, year, City, State, tmax, tmin, prcp)
+tmax_tmin_prcp_tidy |>
+  glimpse()
+```
+
+
+```{r}
+
+if(all(names(tmax_tmin_prcp) == names(tmax_tmin_prcp_tidy))) {
+  print("Column names match.")
+} else {
+  print("Column names do not match.")
+}
+
+# Check if all rows are included
+anti_join(tmax_tmin_prcp, tmax_tmin_prcp_tidy) |>
+  summarise(rows_not_in_df2 = n())
+
+```
+
+
+## Part B
+
+### Question (i). 6 points.
+
+Consider the data in tmax_tmin_prcp.Rda from 1971 to 2017. Is there any pattern to which days are missing temperatures? What do you think is causing this?
+
+```{r}
+missing1 <- tmax_tmin_prcp |>
+  filter(is.na(tmax) | is.na(tmin)) |>
+  filter(year >= 1971 & year < 2018)
+missing1
+```
+```{r}
+missing2 <- missing1 |>
+  filter(year > 1971)
+missing2
+```
+```{r}
+missing3 <- missing1 |>
+  filter(year == 1980 | year == 1984)
+missing3
+```
+```{r}
+missing4 <- missing1 |>
+  filter(year %% 4 == 0)
+missing4
+```
+
+The temperatures are missing for every single day in the year 1971. 1972 isn't even included in the dataset. From 1973 onwards, the temperatures are missing for every 29th of February. For leap years like 1980, 1984, and so on, temperatures are available.
+
+### BONUS Question (ii). 10 Points.
+
+Provide code to create the following graphic showing the average maximum and minimum temperature per year across the four cities from 1971 to 2017.
+
+```{r}
+tmax_tmin_prcp |>
+  filter(year >= 1971 & year < 2018) |>
+  group_by(year, City) %>%
+  summarize(avg_tmin = mean(tmin, na.rm = TRUE),
+            avg_tmax = mean(tmax, na.rm = TRUE)) |>
+  ggplot(aes(x = year,
+             color = City,
+             linetype = c(avg_tmin),(avg_tmax))) +
+  geom_line(aes(y=avg_tmin, linetype="Minimum")) +
+  geom_line(aes(y=avg_tmax, linetype="Maximum")) +
+  labs(x = "year",
+       y = "Temperature") +
+  scale_linetype_manual(values = c("Minimum" = 44, "Maximum" = 1), 
+                        name = "Average Daily")
+```
